@@ -41,17 +41,17 @@ use File::Path qw(make_path);
 use Pod::Usage qw(pod2usage);
 
 use Sanger::CGP::NgsQc;
-use Sanger::CGP::NgsQc::VerifyBamId;
+use Sanger::CGP::NgsQc::CompareGenotypes;
 
 my $options = &setup;
 
-my $verify = Sanger::CGP::NgsQc::VerifyBamId->new($options->{'bam'});
-$verify->set_ascat($options->{'ascat'}) if(exists $options->{'ascat'});
-$verify->set_snps($options->{'snps'}) if(exists $options->{'snps'});
-$verify->set_downsample($options->{'downsamp'});
-$verify->filter_loci($options->{'out'});
-$verify->run_verifyBam;
-print $verify->result_to_json,"\n" if(defined $options->{'json'});
+my $compare = Sanger::CGP::NgsQc::CompareGenotypes->new();
+$compare->add_tumour_bams(@{$options->{'t_bams'}});
+$compare->add_normal_bam($options->{'n_bam'});
+
+$compare->compare($options->{'out'});
+print $compare->result_to_json,"\n" if(defined $options->{'json'});
+
 exit 0;
 
 sub setup {
@@ -59,11 +59,9 @@ sub setup {
   GetOptions( 'h|help' => \$opts{'h'},
               'm|man' => \$opts{'m'},
               'v|version' => \$opts{'v'},
-              'b|bam=s' => \$opts{'bam'},
+              'tb|tumour_bams=s@' => \$opts{'t_bams'},
+              'nb|normal_bam=s' => \$opts{'n_bam'},
               'o|outdir=s' => \$opts{'out'},
-              'a|ascat=s' => \$opts{'ascat'},
-              's|snps=s' => \$opts{'snps'},
-              'd|downsamp=i' => \$opts{'downsamp'},
               'j|json' => \$opts{'json'},
   ) or pod2usage(2);
 
@@ -77,20 +75,9 @@ sub setup {
 
   # check the required params
   pod2usage(-message => qq{\nERROR: 'outdir' must be defined.\n}, -verbose => 1,  -output => \*STDERR) unless(defined $opts{'out'});
-  pod2usage(-message => qq{\nERROR: 'bam' must be defined.\n}, -verbose => 1,  -output => \*STDERR) unless(defined $opts{'bam'});
-  pod2usage(-message => qq{\nERROR: 'bam' must exist ($opts{bam}).\n}, -verbose => 1,  -output => \*STDERR) unless(-e $opts{'bam'});
-
-  delete $opts{'ascat'} unless(defined $opts{'ascat'});
-  pod2usage(-message => qq{\nERROR: 'ascat' must exist when specified ($opts{ascat}).\n}, -verbose => 1,  -output => \*STDERR) if(exists $opts{'ascat'} && !-e $opts{'ascat'});
-
-  if(defined $opts{'snps'}) {
-    pod2usage(-message => qq{\nERROR: 'snps' must exist when specified ($opts{snps}).\n}, -verbose => 1,  -output => \*STDERR) if(exists $opts{'snps'} && !-e $opts{'snps'});
-  }
-  else {
-    delete $opts{'snps'};
-  }
-
-  $opts{'downsamp'} = 1 unless(defined $opts{'downsamp'});
+  pod2usage(-message => qq{\nERROR: 'tumour_bams' must be defined.\n}, -verbose => 1,  -output => \*STDERR) unless(defined $opts{'t_bams'});
+  pod2usage(-message => qq{\nERROR: 'normal_bam' must be defined.\n}, -verbose => 1,  -output => \*STDERR) unless(defined $opts{'n_bam'});
+  pod2usage(-message => qq{\nERROR: 'normal_bam' must exist ($opts{n_bam}).\n}, -verbose => 1,  -output => \*STDERR) unless(-e $opts{'n_bam'});
 
   ## setup out location
   make_path($opts{'out'}) or die $! unless(-e $opts{'out'});
@@ -102,29 +89,19 @@ __END__
 
 =head1 NAME
 
-verifyBamHomChk.pl - Runs verify BAM
+compareBamGenotypes.pl - Compare a set of BAM files from the same donor.
 
 =head1 SYNOPSIS
 
-verifyBamHomChk.pl [options]
+compareBamGenotypes.pl [options]
 
   Required parameters:
 
-    -outdir   -o  Directory for output
-
-    -bam      -b  BAM file to process
+    -outdir         -o    Directory for output.
+    -tumour_bams    -tb   Tumour BAM file(s) to process.
+    -normal_bam     -nb   Normal BAM file to process.
 
   Optional parameters:
-
-    -snps     -s  VCF file of SNP locations as described here:
-                      http://genome.sph.umich.edu/wiki/VerifyBamID
-                        ([b]gzip compressed works too)
-                      defaults to included GRCh37 SNP6 loci.
-
-    -downsamp -d  Subsample the SNPs at rate of 1 in X [1]
-
-    -ascat    -a  Exclude LOH regions based on ASCAT segments file []
-
     -json     -j  Output summary to STDOUT as JSON string.
 
   Other:

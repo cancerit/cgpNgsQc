@@ -18,3 +18,6 @@ nytprof.out
 *.o
 *.bs
 /bin/verifyBamID
+/perltidy.LOG
+/docs/
+/setup.log

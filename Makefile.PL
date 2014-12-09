@@ -1,4 +1,4 @@
-package Sanger::CGP::NgsQc;
+#!/usr/bin/perl
 
 ########## LICENCE ##########
 # Copyright (c) 2014 Genome Research Ltd.
@@ -32,25 +32,26 @@ package Sanger::CGP::NgsQc;
 ########## LICENCE ##########
 
 
-use strict;
-use base 'Exporter';
-use Bio::DB::Sam;
+use ExtUtils::MakeMaker;
+use File::ShareDir::Install;
 
-our $VERSION = '0.0.1';
-our @EXPORT = qw($VERSION);
+install_share dist => 'share';
 
-sub bam_sample_name {
-  my $bam = shift;
-  my @lines = split /\n/, Bio::DB::Sam->new(-bam => $bam)->header->text;
-  my $sample;
-  for(@lines) {
-    if($_ =~ m/^\@RG.*\tSM:([^\t]+)/) {
-      $sample = $1;
-      last;
-    }
-  }
-  die "Failed to determine sample from BAM header\n" unless(defined $sample);
-  return $sample;
-}
+WriteMakefile(
+  NAME          => 'cgpNgsQc',
+  LICENSE       => 'agpl_3', # http://search.cpan.org/~dagolden/CPAN-Meta-2.142690/lib/CPAN/Meta/Spec.pm#license
+  VERSION_FROM  => 'lib/Sanger/CGP/NgsQc.pm',
+  EXE_FILES     => [qw( bin/verifyBamHomChk.pl
+                        bin/compareBamGenotypes.pl
+                         )],
+  PREREQ_PM     => {
+                     'Const::Fast' => 0.014,
+                     'Bio::DB::Sam' => 1.12,
+                     'Capture::Tiny' => 0.27,
+                     'File::ShareDir' => 1.102,
+                     'File::ShareDir::Install' => 0.09,
+                   }
+);
 
-1;
+package MY;
+use File::ShareDir::Install qw( postamble );

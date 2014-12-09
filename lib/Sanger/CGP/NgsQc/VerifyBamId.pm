@@ -1,12 +1,44 @@
 package Sanger::CGP::NgsQc::VerifyBamId;
 
+########## LICENCE ##########
+# Copyright (c) 2014 Genome Research Ltd.
+# 
+# Author: Keiran Raine <cgpit@sanger.ac.uk>
+# 
+# This file is part of cgpNgsQc.
+# 
+# cgpNgsQc is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation; either version 3 of the License, or (at your option) any
+# later version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+# 
+# 1. The usage of a range of years within a copyright statement contained within
+# this distribution should be interpreted as being equivalent to a list of years
+# including the first and last year specified and all consecutive years between
+# them. For example, a copyright statement that reads ‘Copyright (c) 2005, 2007-
+# 2009, 2011-2012’ should be interpreted as being identical to a statement that
+# reads ‘Copyright (c) 2005, 2007, 2008, 2009, 2011, 2012’ and a copyright
+# statement that reads ‘Copyright (c) 2005-2012’ should be interpreted as being
+# identical to a statement that reads ‘Copyright (c) 2005, 2006, 2007, 2008,
+# 2009, 2010, 2011, 2012’."
+########## LICENCE ##########
+
+
 use Sanger::CGP::NgsQc;
 
 use strict;
 use warnings FATAL=>'all';
 use Const::Fast qw(const);
 use FindBin qw($Bin);
-use File::ShareDir qw(module_dir);
+use File::ShareDir qw(dist_dir);
 use File::Which qw(which);
 use Capture::Tiny qw(capture);
 use autodie qw(:all);
@@ -201,7 +233,7 @@ sub default_snp_vcf {
   # so try installed area
   unless(defined $data_path && -e $data_path) {
     $data_path = "$Bin/../share";
-    $data_path = module_dir('Sanger::CGP::NgsQc::VerifyBamId') unless(-e "$data_path/SNP6");
+    $data_path = dist_dir('cgpNgsQc') unless(-e "$data_path/SNP6");
   }
   $data_path .= '/SNP6/GRCh37.vcf.gz';
   return $data_path;

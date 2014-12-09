@@ -1,5 +1,3 @@
-package Sanger::CGP::NgsQc;
-
 ########## LICENCE ##########
 # Copyright (c) 2014 Genome Research Ltd.
 # 
@@ -31,26 +29,56 @@ package Sanger::CGP::NgsQc;
 # 2009, 2010, 2011, 2012’."
 ########## LICENCE ##########
 
+# this is a catch all to ensure all modules do compile
+# added as lots of 'use' functionality is dynamic in pipeline
+# and need to be sure that all modules compile.
+# simple 'perl -c' is unlikely to work on head scripts any more.
 
 use strict;
-use base 'Exporter';
-use Bio::DB::Sam;
+use Test::More;
+use List::Util qw(first);
+use File::Find;
+use Cwd;
+use Try::Tiny qw(try finally);
+use File::Spec;
 
-our $VERSION = '0.0.1';
-our @EXPORT = qw($VERSION);
+use FindBin qw($Bin);
+my $lib_path = "$Bin/../lib";
 
-sub bam_sample_name {
-  my $bam = shift;
-  my @lines = split /\n/, Bio::DB::Sam->new(-bam => $bam)->header->text;
-  my $sample;
-  for(@lines) {
-    if($_ =~ m/^\@RG.*\tSM:([^\t]+)/) {
-      $sample = $1;
-      last;
-    }
-  }
-  die "Failed to determine sample from BAM header\n" unless(defined $sample);
-  return $sample;
+# Add modules here that cannot be instantiated (should be extended and have no 'new')
+# or need a set of inputs - these should be tested in own test script
+use constant MODULE_SKIP => qw();
+
+my $init_cwd = getcwd;
+
+my @modules;
+try {
+  chdir($lib_path);
+  find({ wanted => \&build_module_set, no_chdir => 1 }, './');
+} finally {
+  chdir $init_cwd;
+  die "The try block died with: @_\n" if(@_);
+};
+
+for my $mod(@modules) {
+  use_ok($mod) or BAIL_OUT("Unable to 'use' module $mod");
 }
 
-1;
+for my $mod(@modules) {
+  if($mod->can('new')) { # only try new on things that have new defined
+    new_ok($mod) unless( first {$mod eq $_} MODULE_SKIP );
+  }
+}
+
+done_testing();
+
+sub build_module_set {
+  if($_ =~ m/\.pm$/) {
+
+    my ($dir_str,$file) = (File::Spec->splitpath( $_ ))[1,2];
+    $file =~ s/\.pm$//;
+    my @dirs = File::Spec->splitdir( $dir_str );
+    shift @dirs;
+    push @modules, (join '::', @dirs).$file;
+  }
+}
