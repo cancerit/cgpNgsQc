@@ -110,6 +110,12 @@ if [[ "x$CHK" == "x" ]] ; then
   exit 1;
 fi
 
+CHK=`which alleleCounter`
+if [[ "x$CHK" == "x" ]] ; then
+  echo "PREREQUISITE: Please install alleleCount before proceeding: https://github.com/cancerit/alleleCount/releases"
+  exit 1;
+fi
+
 perlmods=( "File::ShareDir::Install" )
 
 set -e
