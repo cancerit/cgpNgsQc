@@ -2,24 +2,24 @@
 
 ########## LICENCE ##########
 # Copyright (c) 2014 Genome Research Ltd.
-# 
+#
 # Author: Keiran Raine <cgpit@sanger.ac.uk>
-# 
+#
 # This file is part of cgpNgsQc.
-# 
+#
 # cgpNgsQc is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Affero General Public License as published by the Free
 # Software Foundation; either version 3 of the License, or (at your option) any
 # later version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
 # details.
-# 
+#
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-# 
+#
 # 1. The usage of a range of years within a copyright statement contained within
 # this distribution should be interpreted as being equivalent to a list of years
 # including the first and last year specified and all consecutive years between
@@ -48,9 +48,18 @@ my $options = &setup;
 my $compare = Sanger::CGP::NgsQc::CompareGenotypes->new();
 $compare->add_tumour_bams(@{$options->{'t_bams'}});
 $compare->add_normal_bam($options->{'n_bam'});
-
 $compare->compare($options->{'out'});
-print $compare->result_to_json,"\n" if(defined $options->{'json'});
+
+if(defined $options->{'json'}) {
+  if($options->{'json'} eq '-') {
+    print $verify->result_to_json,"\n";
+  }
+  else {
+    open my $OUT, '>', $options->{'json'};
+    print $OUT $verify->result_to_json,"\n" or die "Failed to write to $options->{json}: $!";
+    close $OUT;
+  }
+}
 
 exit 0;
 
@@ -97,14 +106,14 @@ compareBamGenotypes.pl [options]
 
   Required parameters:
 
-    -outdir         -o    Directory for output.
-    -tumour_bams    -tb   Tumour BAM file(s) to process.
-    -normal_bam     -nb   Normal BAM file to process.
+    -outdir       -o    Directory for output.
+    -tumour_bams  -tb   Tumour BAM file(s) to process.
+    -normal_bam   -nb   Normal BAM file to process.
 
   Optional parameters:
-    -json     -j  Output summary to STDOUT as JSON string.
+    -json         -j  Output summary as JSON string '-' for STDOUT.
 
   Other:
-    -help     -h  Brief help message.
-    -man      -m  Full documentation.
-    -version  -v  Shows version.
+    -help         -h  Brief help message.
+    -man          -m  Full documentation.
+    -version      -v  Shows version.
