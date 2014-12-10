@@ -52,11 +52,11 @@ $compare->compare($options->{'out'});
 
 if(defined $options->{'json'}) {
   if($options->{'json'} eq '-') {
-    print $verify->result_to_json,"\n";
+    print $compare->result_to_json,"\n";
   }
   else {
     open my $OUT, '>', $options->{'json'};
-    print $OUT $verify->result_to_json,"\n" or die "Failed to write to $options->{json}: $!";
+    print $OUT $compare->result_to_json,"\n" or die "Failed to write to $options->{json}: $!";
     close $OUT;
   }
 }
