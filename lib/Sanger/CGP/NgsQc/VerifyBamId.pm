@@ -120,10 +120,11 @@ sub run_verifyBam {
   my $bam = $self->{'bam'};
   my ($out_stub) = $snps =~ m/(.*)_snps[.]vcf$/;
 
-  my $verifyBamID = "$Bin/verifyBamID";
-  $verifyBamID = which('verifyBamID') unless(-e $verifyBamID);
+  my $verifyBamID = "$Bin/verifyBamId";
+  $verifyBamID = which('verifyBamId') unless(-e $verifyBamID);
   die "Unable to find verifyBamID executable\n" unless(-e $verifyBamID);
   my $command = sprintf $VERIFY, $verifyBamID, $snps, $bam, $out_stub;
+  warn "Running: $command\n";
   my ($stdout, $stderr, $exit) = capture { system($command); };
   die "An error occurred while executing:\n\t$command\nERROR: $stderr\n" if($exit);
 
@@ -178,6 +179,7 @@ sub filter_loci {
   my ($self, $outdir) = @_;
   my $loh_regions = $self->get_loh_regions;
   my $loci = $self->get_snps;
+  warn "Original Loci: $loci\n";
   my $sample = $self->{'sample'};
   my $one_in_x = $self->{'downsamp'};
   make_path($outdir) unless(-d $outdir);
