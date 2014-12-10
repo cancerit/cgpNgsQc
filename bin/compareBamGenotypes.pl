@@ -71,7 +71,7 @@ sub setup {
               'tb|tumour_bams=s@' => \$opts{'t_bams'},
               'nb|normal_bam=s' => \$opts{'n_bam'},
               'o|outdir=s' => \$opts{'out'},
-              'j|json' => \$opts{'json'},
+              'j|json=s' => \$opts{'json'},
   ) or pod2usage(2);
 
   pod2usage(-verbose => 1) if(defined $opts{'h'});
