@@ -225,7 +225,7 @@ sub default_snp_vcf {
   # so try installed area
   unless(defined $data_path && -e $data_path) {
     $data_path = "$Bin/../share";
-    $data_path = dist_dir('cgpNgsQc') unless(-e "$data_path/SNP6");
+    $data_path = dist_dir('Sanger-CGP-NgsQc') unless(-e "$data_path/SNP6");
   }
   $data_path .= '/SNP6/GRCh37.vcf.gz';
   return $data_path;
