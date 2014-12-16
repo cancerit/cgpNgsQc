@@ -17,3 +17,7 @@ nytprof.out
 /pm_to_blib
 *.o
 *.bs
+/bin/verifyBamID
+/perltidy.LOG
+/docs/
+/setup.log

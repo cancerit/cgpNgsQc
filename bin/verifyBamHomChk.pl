@@ -1,117 +1,69 @@
 #!/usr/bin/perl
 
+########## LICENCE ##########
+# Copyright (c) 2014 Genome Research Ltd.
+#
+# Author: Keiran Raine <cgpit@sanger.ac.uk>
+#
+# This file is part of cgpNgsQc.
+#
+# cgpNgsQc is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation; either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+# details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+# 1. The usage of a range of years within a copyright statement contained within
+# this distribution should be interpreted as being equivalent to a list of years
+# including the first and last year specified and all consecutive years between
+# them. For example, a copyright statement that reads ‘Copyright (c) 2005, 2007-
+# 2009, 2011-2012’ should be interpreted as being identical to a statement that
+# reads ‘Copyright (c) 2005, 2007, 2008, 2009, 2011, 2012’ and a copyright
+# statement that reads ‘Copyright (c) 2005-2012’ should be interpreted as being
+# identical to a statement that reads ‘Copyright (c) 2005, 2006, 2007, 2008,
+# 2009, 2010, 2011, 2012’."
+########## LICENCE ##########
+
+
 use strict;
 use warnings FATAL => 'all';
 use autodie qw(:all);
-use FindBin qw($Bin);
+
 use Getopt::Long;
 use File::Spec;
-use Pod::Usage qw(pod2usage);
-use Const::Fast qw(const);
-use File::Which qw(which);
 use File::Path qw(make_path);
-use Bio::DB::Sam;
-use Capture::Tiny qw(capture);
+use Pod::Usage qw(pod2usage);
 
-const my $VERIFY => q{%s --precise --maxDepth 200 --minMapQ 10 --minQ 13 --maxQ 40 --grid 0.05 --ignoreOverlapPair --self --vcf %s --bam %s --out %s};
+use Sanger::CGP::NgsQc;
+use Sanger::CGP::NgsQc::VerifyBamId;
 
 my $options = &setup;
 
-my $ascat_loh = get_loh_regions($options->{'loh_bed'});
-my $sample = sample_name($options->{'bam'});
-my $filtered_vcf = filter_loci($options->{'snps'}, $ascat_loh, $options->{'out'}, $sample, $options->{'downsamp'});
-my ($reported_sample, $contamination) = run_verifyBam($filtered_vcf, $bam_in);
-print join("\t", $reported_sample, $contamination),"\n";
+my $verify = Sanger::CGP::NgsQc::VerifyBamId->new($options->{'bam'});
+$verify->set_ascat($options->{'ascat'}) if(exists $options->{'ascat'});
+$verify->set_snps($options->{'snps'}) if(exists $options->{'snps'});
+$verify->set_downsample($options->{'downsamp'});
+$verify->filter_loci($options->{'out'});
+$verify->run_verifyBam;
 
-sub run_verifyBam {
-  my ($snps, $bam) = @_;
-  my $verifyBamID = "$Bin/verifyBamID";
-  $verifyBamID = which('verifyBamID') unless(-e $verifyBamID);
-  die "Unable to find verifyBamID executable\n" unless(-e $verifyBamID);
-  my ($out_stub) = $snps =~ m/(.*)_snps[.]vcf$/;
-  my $command = sprintf $VERIFY, $verifyBamID, $snps, $bam, $out_stub;
-  my ($stdout, $stderr, $exit) = capture { system($command); };
-  die "An error occurred while executing:\n\t$command\nERROR: $stderr\n" if($exit);
-  my $result = "$out_stub.selfSM";
-  open my $RES, '<', $result;
-  my $head = <$RES>;
-  my ($this_sample, $contam) = (split /\t/, <$RES>)[0,6];
-  close $RES;
-  return ($this_sample, $contam);
-}
-
-sub sample_name {
-  my $bam = shift;
-  my @lines = split /\n/, Bio::DB::Sam->new(-bam => $bam)->header->text;
-  my $sample;
-  for(@lines) {
-    if($_ =~ m/^\@RG.*\tSM:([^\t]+)/) {
-      $sample = $1;
-      last;
-    }
+if(defined $options->{'json'}) {
+  if($options->{'json'} eq '-') {
+    print $verify->result_to_json,"\n";
   }
-  die "Failed to determine sample from BAM header\n" unless(defined $sample);
-  return $sample;
-}
-
-sub get_loh_regions {
-  my ($ascat) = @_;
-  my %loh_by_chr;
-  if(defined $ascat) {
-    open my $SEG, '<', $ascat;
-    while(my $line = <$SEG>) {
-      chomp $line;
-      my (undef, $chr, $from, $to, $wt_total, $wt_minor, $mt_total, $mt_minor) = split q{,}, $line;
-      next unless(defined $mt_minor);
-      push @{$loh_by_chr{$chr}}, [$from, $to] if($mt_minor < 1); ## this value may not be correct
-    }
-    close $SEG;
+  else {
+    open my $OUT, '>', $options->{'json'};
+    print $OUT $verify->result_to_json,"\n" or die "Failed to write to $options->{json}: $!";
+    close $OUT;
   }
-  return \%loh_by_chr;
 }
-
-sub filter_loci {
-  my ($loci, $loh_regions, $outdir, $sample, $one_in_x) = @_;
-  make_path($outdir) unless(-d $outdir);
-  my $filtered_vcf = "$outdir/${sample}_snps.vcf";
-
-  open my $VCF, '>', $filtered_vcf;
-  my $z = new IO::Uncompress::Gunzip $loci;
-  my $header = <$z>;
-  print $VCF $header or die $!;
-  my $last_chr = q{.};
-  my @ranges;
-  my ($excluded_snps, $total_snps, $included_snps) = (0,0,0);
-  LINE: while(my $line = <$z>) {
-    $total_snps++;
-    next if($. % $one_in_x != 0);
-    next if($line =~ m/^#/); # just incase there are multiple comment lines
-    my ($chr, $pos) = $line =~ m/^([^\t]+)\t([[:digit:]]+)/;
-    if($chr ne $last_chr) {
-      if(exists $loh_regions->{$chr}) {
-        @ranges = @{$loh_regions->{$chr}};
-      }
-      else {
-        @ranges = ();
-      }
-      $last_chr = $chr;
-    }
-    for my $range(@ranges) {
-      if($pos >= $range->[0] && $pos <= $range->[1]) {
-        $excluded_snps++;
-        next LINE;
-      }
-    }
-    $included_snps++;
-    print $VCF $line or die $!;
-  }
-  close $z;
-  close $VCF;
-  warn "Total SNPs: $total_snps\n";
-  warn "Excluded as HOM: $excluded_snps\n";
-  warn "Retained SNPs: $included_snps\n";
-  return $filtered_vcf;
-}
+exit 0;
 
 sub setup {
   my %opts;
@@ -119,11 +71,42 @@ sub setup {
               'm|man' => \$opts{'m'},
               'v|version' => \$opts{'v'},
               'b|bam=s' => \$opts{'bam'},
-              'o|out_prefix=s' => \$opts{'out'},
-              'l|loh_bed=s' => \$opts{'loh'},
+              'o|outdir=s' => \$opts{'out'},
+              'a|ascat=s' => \$opts{'ascat'},
               's|snps=s' => \$opts{'snps'},
               'd|downsamp=i' => \$opts{'downsamp'},
+              'j|json=s' => \$opts{'json'},
   ) or pod2usage(2);
+
+  pod2usage(-verbose => 1) if(defined $opts{'h'});
+  pod2usage(-verbose => 2) if(defined $opts{'m'});
+
+  if(defined $opts{'v'}) {
+    print 'VERSION: '.Sanger::CGP::NgsQc->VERSION,"\n";
+    exit 0;
+  }
+
+  # check the required params
+  pod2usage(-message => qq{\nERROR: 'outdir' must be defined.\n}, -verbose => 1,  -output => \*STDERR) unless(defined $opts{'out'});
+  pod2usage(-message => qq{\nERROR: 'bam' must be defined.\n}, -verbose => 1,  -output => \*STDERR) unless(defined $opts{'bam'});
+  pod2usage(-message => qq{\nERROR: 'bam' must exist ($opts{bam}).\n}, -verbose => 1,  -output => \*STDERR) unless(-e $opts{'bam'});
+
+  delete $opts{'ascat'} unless(defined $opts{'ascat'});
+  pod2usage(-message => qq{\nERROR: 'ascat' must exist when specified ($opts{ascat}).\n}, -verbose => 1,  -output => \*STDERR) if(exists $opts{'ascat'} && !-e $opts{'ascat'});
+
+  if(defined $opts{'snps'}) {
+    pod2usage(-message => qq{\nERROR: 'snps' must exist when specified ($opts{snps}).\n}, -verbose => 1,  -output => \*STDERR) if(exists $opts{'snps'} && !-e $opts{'snps'});
+  }
+  else {
+    delete $opts{'snps'};
+  }
+
+  $opts{'downsamp'} = 1 unless(defined $opts{'downsamp'});
+
+  ## setup out location
+  make_path($opts{'out'}) or die $! unless(-e $opts{'out'});
+
+  return \%opts;
 }
 
 __END__
@@ -138,21 +121,24 @@ verifyBamHomChk.pl [options]
 
   Required parameters:
 
-    -out_prefix  -o   Stub for output filenames
+    -outdir   -o  Directory for output
 
-    -bam         -b   BAM file to process
+    -bam      -b  BAM file to process
 
   Optional parameters:
 
-    -snps        -s   VCF file of SNP locations as described here:
-                        http://genome.sph.umich.edu/wiki/VerifyBamID
-                          ([b]gzip compressed works too)
-                        defaults to included GRCh37 SNP6 loci.
+    -snps     -s  VCF file of SNP locations as described here:
+                      http://genome.sph.umich.edu/wiki/VerifyBamID
+                        ([b]gzip compressed works too)
+                      defaults to included GRCh37 SNP6 loci.
 
-    -downsamp    -d   Subsample the SNPs at rate of 1 in X [1]
+    -downsamp -d  Subsample the SNPs at rate of 1 in X [1]
 
-    -loh_bed     -l   Exclude SNPs from these ranges []
+    -ascat    -a  Exclude LOH regions based on ASCAT segments file []
+
+    -json     -j  Output summary as JSON string '-' for STDOUT.
 
   Other:
-    -help      -h   Brief help message.
-    -man       -m   Full documentation.
+    -help     -h  Brief help message.
+    -man      -m  Full documentation.
+    -version  -v  Shows version.
