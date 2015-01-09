@@ -140,8 +140,8 @@ sub compare_samples {
   print $RES "genotype\t$tumour\t".join(q{,},@tumour_calls_geno)."\n" or die "Failed to write line to $result: $!";
   print $RES "genotype\t$normal\t".join(q{,},@normal_calls_geno)."\n" or die "Failed to write line to $result: $!";
   print $RES "#GENDER LOCI\n" or die "Failed to write line to $result: $!";
-  for my $key(sort keys %{$result_struct{'genotype'}}) {
-    print $RES "$key\t$result_struct{genotype}{$key}\n" or die "Failed to write line to $result: $!";
+  for my $key(sort keys %{$result_struct{'gender'}}) {
+    print $RES "$key\t$result_struct{gender}{$key}\n" or die "Failed to write line to $result: $!";
   }
   print $RES "gender\t$tumour\t".join(q{,},@tumour_calls_gender)."\n" or die "Failed to write line to $result: $!";
   print $RES "gender\t$normal\t".join(q{,},@normal_calls_gender)."\n" or die "Failed to write line to $result: $!";
