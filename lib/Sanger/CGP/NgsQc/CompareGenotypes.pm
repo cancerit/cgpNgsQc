@@ -118,7 +118,7 @@ sub compare_samples {
     }
   }
   my $gender = 'XX';
-  $gender = 'XY' if($xy / $gender_loci_count > 0.5);
+  $gender = 'XY' if($xy / $gender_loci_count >= 0.5);
   my %result_struct = ('sample' => $tumour,
                        'genotype' => {'frac_informative_genotype' =>  $informative / $loci_count,
                                       'frac_matched_genotype' => $matched / $informative},
