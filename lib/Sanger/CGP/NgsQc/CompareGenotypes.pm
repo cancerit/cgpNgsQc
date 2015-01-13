@@ -112,13 +112,11 @@ sub compare_samples {
   my $gender_loci_count = scalar @normal_calls_gender;
   my ($xy, $gender_match) = (0,0);
   for(my $i=0; $i<$gender_loci_count; $i++) {
-    if($normal_calls_gender[$i] eq $tumour_calls_gender[$i]) {
-      $gender_match++;
-      $xy++ if($tumour_calls_gender[$i] eq 'XY');
-    }
+    $gender_match++ if($normal_calls_gender[$i] eq $tumour_calls_gender[$i]);
+    $xy++ if($normal_calls_gender[$i] eq 'XY');
   }
   my $gender = 'XX';
-  $gender = 'XY' if($xy / $gender_loci_count >= 0.5);
+  $gender = 'XY' if($xy > 0); # any male specific loci present in normal results in XY call
   my %result_struct = ('sample' => $tumour,
                        'genotype' => {'frac_informative_genotype' =>  $informative / $loci_count,
                                       'frac_matched_genotype' => $matched / $informative},
