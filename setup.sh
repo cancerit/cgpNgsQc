@@ -35,7 +35,7 @@ SOURCE_VERIFYBAM="https://github.com/statgen/verifyBamID/releases/download/v1.1.
 
 get_distro () {
   if hash curl 2>/dev/null; then
-    curl -sS -o $1.gz -L $2
+    curl -skS -o $1.gz -L $2
   else
     wget -nv -O $1.gz $2
   fi
