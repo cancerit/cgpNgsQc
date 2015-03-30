@@ -1,7 +1,6 @@
 bin/compareBamGenotypes.pl
 bin/cpanm
 bin/verifyBamHomChk.pl
-bin/verifyBamID
 docs.tar.gz
 lib/Sanger/CGP/NgsQc.pm
 lib/Sanger/CGP/NgsQc/CompareGenotypes.pm

@@ -36,7 +36,7 @@ use strict;
 use base 'Exporter';
 use Bio::DB::Sam;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 our @EXPORT = qw($VERSION);
 
 sub bam_sample_name {
