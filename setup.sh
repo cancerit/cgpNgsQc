@@ -31,15 +31,14 @@
 # 2009, 2010, 2011, 2012’."
 ########## LICENCE ##########
 
-SOURCE_VERIFYBAM="https://github.com/statgen/verifyBamID/releases/download/v1.1.0/verifyBamID.1.1.0.gz"
+SOURCE_VERIFYBAM="https://github.com/statgen/verifyBamID/releases/download/v1.1.2/verifyBamID.1.1.2"
 
-get_distro () {
+get_file () {
   if hash curl 2>/dev/null; then
-    curl -skS -o $1.gz -L $2
+    curl -sSL -o $1 -L $2
   else
-    wget -nv -O $1.gz $2
+    wget -nv -O $1 $2
   fi
-  gunzip -c $1.gz > $1
 }
 
 done_message () {
@@ -99,10 +98,8 @@ cd $INIT_DIR
 
 # make sure that build is self contained
 unset PERL5LIB
-ARCHNAME=`perl -e 'use Config; print $Config{archname};'`
 PERLROOT=$INST_PATH/lib/perl5
-PERLARCH=$PERLROOT/$ARCHNAME
-export PERL5LIB="$PERLROOT:$PERLARCH"
+export PERL5LIB="$PERLROOT"
 
 CHK=`perl -le 'eval "require $ARGV[0]" and print $ARGV[0]->VERSION' Bio::DB::Sam`
 if [[ "x$CHK" == "x" ]] ; then
@@ -122,10 +119,7 @@ set -e
 for i in "${perlmods[@]}" ; do
   echo -n "Installing build prerequisite $i..."
   (
-    set -x
     $INIT_DIR/bin/cpanm -v --mirror http://cpan.metacpan.org -l $INST_PATH $i
-    set +x
-    echo; echo
   ) >>$INIT_DIR/setup.log 2>&1
   done_message "" "Failed during installation of $i."
 done
@@ -141,9 +135,7 @@ if ! ( perl -MExtUtils::MakeMaker -e 1 >/dev/null 2>&1); then
     echo "WARNING: Your Perl installation does not seem to include a complete set of core modules.  Attempting to cope with this, but if installation fails please make sure that at least ExtUtils::MakeMaker is installed.  For most users, the best way to do this is to use your system's package manager: apt, yum, fink, homebrew, or similar."
 fi
 (
-  set -x
   $INIT_DIR/bin/cpanm -v --mirror http://cpan.metacpan.org --notest -l $INST_PATH/ --installdeps . < /dev/null
-  set +x
 ) >>$INIT_DIR/setup.log 2>&1
 done_message "" "Failed during installation of core dependencies."
 
@@ -151,18 +143,17 @@ done_message "" "Failed during installation of core dependencies."
 SETUP_DIR=$INIT_DIR/install_tmp
 mkdir -p $SETUP_DIR
 cd $SETUP_DIR
-get_distro "verifyBamId" $SOURCE_VERIFYBAM
+get_file "verifyBamId" $SOURCE_VERIFYBAM
 cp $SETUP_DIR/verifyBamId $INST_PATH/bin/.
 chmod +x $INST_PATH/bin/verifyBamId
 cd $INIT_DIR
 
 echo -n "Installing cgpNgsQc ..."
 (
-  set -e
-  cd $INIT_DIR
-  perl Makefile.PL INSTALL_BASE=$INST_PATH
-  make
-  make test
+  cd $INIT_DIR &&
+  perl Makefile.PL INSTALL_BASE=$INST_PATH &&
+  make &&
+  make test &&
   make install
 ) >>$INIT_DIR/setup.log 2>&1
 done_message "" "cgpNgsQc install failed."
