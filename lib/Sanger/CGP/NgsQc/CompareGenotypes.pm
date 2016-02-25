@@ -45,7 +45,7 @@ use autodie qw(:all);
 use JSON;
 use Carp qw(croak);
 
-const my $ALLELE_COUNT => q{%s --min-base-qual 20 --min-map-qual 35 --output-file /dev/stdout --loci-file %s --bam-file %s};
+const my $ALLELE_COUNT => q{%s --min-base-qual 20 --min-map-qual 35 --output-file /dev/stdout --loci-file %s -b %s};
 const my $MIN_ALLELE_PROP => 0.21;
 const my $MIN_READS_ALLELE_COUNT => 5;
 const my $MIN_READS_XY => 3;
