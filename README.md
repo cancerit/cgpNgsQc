@@ -37,5 +37,6 @@ Collection of code for checking NSG sequencing results
 Dependancies
 ============
 
-[BioSamTools](http://search.cpan.org/~lds/Bio-SamTools/)
-[VerifyBamId](http://genome.sph.umich.edu/wiki/VerifyBamID)
+* [BioSamTools](http://search.cpan.org/~lds/Bio-SamTools/)
+* [VerifyBamId](http://genome.sph.umich.edu/wiki/VerifyBamID)
+* [alleleCount](https://github.com/cancerit/alleleCount)
