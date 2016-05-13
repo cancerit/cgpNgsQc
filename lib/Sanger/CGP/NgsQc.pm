@@ -1,7 +1,7 @@
 package Sanger::CGP::NgsQc;
 
 ########## LICENCE ##########
-# Copyright (c) 2014 Genome Research Ltd.
+# Copyright (c) 2014-2016 Genome Research Ltd.
 #
 # Author: Keiran Raine <cgpit@sanger.ac.uk>
 #
@@ -34,14 +34,14 @@ package Sanger::CGP::NgsQc;
 
 use strict;
 use base 'Exporter';
-use Bio::DB::Sam;
+use Bio::DB::HTS;
 
-our $VERSION = '1.1.0';
+our $VERSION = '1.2.0';
 our @EXPORT = qw($VERSION);
 
 sub bam_sample_name {
   my $bam = shift;
-  my @lines = split /\n/, Bio::DB::Sam->new(-bam => $bam)->header->text;
+  my @lines = split /\n/, Bio::DB::HTS->new(-bam => $bam)->header->text;
   my $sample;
   for(@lines) {
     if($_ =~ m/^\@RG.*\tSM:([^\t]+)/) {
