@@ -1,6 +1,20 @@
+cgpNgsQc
+========
+
+Collection of code for checking NSG sequencing results
+
+Dependancies
+============
+
+* [Bio::DB::HTS](http://search.cpan.org/~rishidev/Bio-DB-HTS)
+* [VerifyBamId](http://genome.sph.umich.edu/wiki/VerifyBamID)
+* [alleleCount](https://github.com/cancerit/alleleCount)
+
+--
+
 LICENCE
 =======
-Copyright (c) 2014 Genome Research Ltd.
+Copyright (c) 2014-2016 Genome Research Ltd.
 
 Author: Keiran Raine <cgpit@sanger.ac.uk>
 
@@ -28,15 +42,3 @@ reads ‘Copyright (c) 2005, 2007, 2008, 2009, 2011, 2012’ and a copyright
 statement that reads ‘Copyright (c) 2005-2012’ should be interpreted as being
 identical to a statement that reads ‘Copyright (c) 2005, 2006, 2007, 2008,
 2009, 2010, 2011, 2012’."
-
-cgpNgsQc
-========
-
-Collection of code for checking NSG sequencing results
-
-Dependancies
-============
-
-* [BioSamTools](http://search.cpan.org/~lds/Bio-SamTools/)
-* [VerifyBamId](http://genome.sph.umich.edu/wiki/VerifyBamID)
-* [alleleCount](https://github.com/cancerit/alleleCount)

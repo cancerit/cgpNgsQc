@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ########## LICENCE ##########
-# Copyright (c) 2014 Genome Research Ltd.
+# Copyright (c) 2014-2016 Genome Research Ltd.
 #
 # Author: Keiran Raine <cgpit@sanger.ac.uk>
 #
@@ -101,9 +101,9 @@ unset PERL5LIB
 PERLROOT=$INST_PATH/lib/perl5
 export PERL5LIB="$PERLROOT"
 
-CHK=`perl -le 'eval "require $ARGV[0]" and print $ARGV[0]->VERSION' Bio::DB::Sam`
+CHK=`perl -le 'eval "require $ARGV[0]" and print $ARGV[0]->VERSION' Bio::DB::HTS`
 if [[ "x$CHK" == "x" ]] ; then
-  echo "PREREQUISITE: Please install Bio::DB::Sam before proceeding"
+  echo "PREREQUISITE: Please install Bio::DB::HTS before proceeding"
   exit 1;
 fi
 
