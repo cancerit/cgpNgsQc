@@ -46,7 +46,7 @@ WriteMakefile(
                          )],
   PREREQ_PM     => {
                      'Const::Fast' => 0.014,
-                     'Bio::DB::Sam' => 1.12,
+                     'Bio::DB::HTS' => 1.11,
                      'Capture::Tiny' => 0.27,
                      'File::ShareDir' => 1.102,
                      'File::ShareDir::Install' => 0.09,
