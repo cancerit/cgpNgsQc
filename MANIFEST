@@ -1,5 +1,5 @@
+.travis.yml
 bin/compareBamGenotypes.pl
-bin/cpanm
 bin/verifyBamHomChk.pl
 docs.tar.gz
 lib/Sanger/CGP/NgsQc.pm
