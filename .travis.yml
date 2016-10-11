@@ -27,6 +27,6 @@ perl:
 script:
  - git clone --depth 1 --single-branch --branch dev https://github.com/cancerit/alleleCount.git
  - cd alleleCount
- - ./setup.sh $HOME/alleleCount-opt $HOME/cgpVcf-opt/lib/perl5:$HOME/PCAP-opt/lib/perl5
+ - ./setup.sh $HOME/wtsi-opt
  - cd ../
- - ./setup.sh $HOME/cgpNgsQc-opt $HOME/alleleCount-opt/lib/perl5
+ - ./setup.sh $HOME/wtsi-opt
