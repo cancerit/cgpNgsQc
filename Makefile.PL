@@ -50,6 +50,7 @@ WriteMakefile(
                      'Capture::Tiny' => 0.27,
                      'File::ShareDir' => 1.102,
                      'File::ShareDir::Install' => 0.09,
+                     'JSON' => 0.00,
                      'JSON::XS' => 0.00,
                    }
 );
