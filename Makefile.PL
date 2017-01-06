@@ -52,7 +52,7 @@ WriteMakefile(
                      'File::ShareDir::Install' => 0.09,
                      'JSON' => 0.00,
                      'JSON::XS' => 0.00,
-                   }
+                   } #TODO needs to add modules for sample validation
 );
 
 package MY;
