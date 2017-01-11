@@ -4,7 +4,6 @@ use strict;
 use warnings FATAL => 'all';
 use autodie qw(:all);
 use Pod::Usage qw(pod2usage);
-use Try::Tiny qw(try catch);
 use Const::Fast qw(const);
 use Carp;
 
@@ -254,7 +253,7 @@ sub validate_bam {
 
   if (! -e $align_file) {
     warn "can not find the file: $align_file\n";
-    return $bam_state.$FAIL_CODE_020."; ";
+    return $bam_state.$FAIL_CODE_020.";";
   }
 
   warn "--------\nstart to validate alignment file: $align_file\n--------\n";
@@ -514,6 +513,7 @@ sub validate_bam {
     warn "this is an invalid bam! Errors are: $bam_state\n";
   }
 
+  $bam_state =~ s/\s$//;
   if ($bam_state eq 'failed:' && $match_pp_remapped_sq_pg == 1) { # if reads group of reads do not check out
     warn "Conclusion: this is a pp_remapped_bam!\n";
     return ("pp-remapped");

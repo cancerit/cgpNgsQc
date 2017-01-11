@@ -43,6 +43,7 @@ WriteMakefile(
   VERSION_FROM  => 'lib/Sanger/CGP/NgsQc.pm',
   EXE_FILES     => [qw( bin/verifyBamHomChk.pl
                         bin/compareBamGenotypes.pl
+                        bin/validate_sample_meta.pl
                          )],
   PREREQ_PM     => {
                      'Const::Fast' => 0.014,
@@ -52,7 +53,12 @@ WriteMakefile(
                      'File::ShareDir::Install' => 0.09,
                      'JSON' => 0.00,
                      'JSON::XS' => 0.00,
-                   } #TODO needs to add modules for sample validation
+                     'Data::UUID' => 0.00,
+                     'Digest::MD5' => 0.00,
+                     'Spreadsheet::Read' => 0.00,
+                     'Spreadsheet::WriteExcel' => 0.00,
+                     'Excel::Writer::XLSX' => 0.00,
+                   }
 );
 
 package MY;
