@@ -36,7 +36,7 @@ use strict;
 use base 'Exporter';
 use Bio::DB::HTS;
 
-our $VERSION = '1.4.1';
+our $VERSION = '1.4.0';
 our @EXPORT = qw($VERSION);
 
 sub bam_sample_name {
