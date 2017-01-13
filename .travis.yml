@@ -1,0 +1,32 @@
+notifications:
+  slack: wtsi-cgpit:ptUMR1tkNyZJYd9TpGoss8WR
+  email: false
+
+env:
+ - CC=gcc
+
+addons:
+ apt:
+  packages:
+   - build-essential
+   - autoconf
+   - curl
+   - libcurl4-openssl-dev
+   - zlib1g-dev
+   - libncurses5-dev
+   - libpstreams-dev
+   - unzip
+
+install: true
+
+language: perl
+
+perl:
+ - "5.22"
+
+script:
+ - git clone --depth 1 --single-branch --branch dev https://github.com/cancerit/alleleCount.git
+ - cd alleleCount
+ - ./setup.sh $HOME/wtsi-opt
+ - cd ../
+ - ./setup.sh $HOME/wtsi-opt
