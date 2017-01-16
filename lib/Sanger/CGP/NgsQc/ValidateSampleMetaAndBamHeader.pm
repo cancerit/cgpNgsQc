@@ -12,6 +12,7 @@ use Spreadsheet::Read qw(ReadData);
 use Spreadsheet::WriteExcel; # to write xls output
 use Excel::Writer::XLSX; # to write xlsx output
 use Bio::DB::HTS;
+use File::Spec;
 use Data::UUID;
 use Digest::MD5 qw(md5_hex);
 
@@ -75,6 +76,7 @@ sub _init {
   croak("--------\nError: can not find input file $options->{'i'}. $!\n--------\n") unless (-e $options->{'i'});
   croak("--------\nError: output file $options->{'o'} is not writable. $!\n--------\n") unless (-w $options->{'o'});
   $options->{'mod'} = 1; # not in testing mode
+  $options->{'count_base_number'} = 1_000_000;
   my $valid_status = validate_samples($options);
   $self->{'valid_status'} = $valid_status;
   return 1;
@@ -105,11 +107,10 @@ sub input_to_array {
 sub validate_samples {
   my ($opts) = @_;
   my $in_array;
-  if ($opts->{'mod'} == 1) {
-    $in_array = input_to_array($opts->{'i'}, $opts->{'f'});
-  } else {
-    $in_array = $opts->{'i'};
+  if (! -e $opts->{'i'}) {
+    die ("--------\nError: Can not find input $opts->{'i'}\n--------\n");
   }
+  $in_array = input_to_array($opts->{'i'}, $opts->{'f'});
 
   my @lines = @$in_array;
 
@@ -118,6 +119,7 @@ sub validate_samples {
 
   ### check input table headers
   my $header_line = '';
+
   if ($lines[0] =~ m/^\#|^DONOR_ID/i) {
     warn "--------\nTake the first line as header line.\n";
     $header_line = $lines[0]; shift @lines;
@@ -188,14 +190,15 @@ sub validate_samples {
   warn "--------\n\n";
 
   my $ncol = scalar split("\t", $header_line);
-  my $dir = getcwd;
+  my ($in_volume,$in_directories,$in_file_name) = File::Spec->splitpath($opts->{'i'});
   ### store IDs and check if there's duplicated sample_id or relative_file_path
   my (%sample_id_checks, %bam_path_checks, @donor_ids, @tissue_ids, @is_normals, @sample_ids, @bam_files);
   for (my $i=0; $i < scalar @lines; $i++) {
     my @temp = split("\t", $lines[$i]);
     if (scalar @temp == $ncol) {
       my ($sample_id, $bam) = ($temp[$sample_index], $temp[$bam_index]);
-      $bam = "$dir/$bam"; #$bam =~ s/\s/\\ /;
+      $bam =~ s/^\s+|\s+$//g; #trimming off leading and tailing spaces in file path
+      $bam = File::Spec->catpath($in_volume, $in_directories, $bam);
       if (! exists $sample_id_checks{$sample_id}) {
         $sample_id_checks{$sample_id} = 1; push @sample_ids, $sample_id;
       } else {
@@ -222,7 +225,7 @@ sub validate_samples {
     push @out, $header_line."\t".$HEADER_BAM_STATE;
     for (my $i = 0;$i < scalar @sample_ids; $i++) {
       warn "#--- processing sample: $sample_ids[$i]\n";
-      my $bam_state = validate_bam($sample_ids[$i], $is_normals[$i], $bam_files[$i], $opts->{'a'});
+      my $bam_state = validate_bam($sample_ids[$i], $is_normals[$i], $bam_files[$i], $opts->{'a'}, $opts->{'count_base_number'});
       push @bam_states, $bam_state;
       push @out, $lines[$i]."\t".$bam_state;
       warn "done! ---#\n";
@@ -277,7 +280,7 @@ sub validate_samples {
   if ($opts->{'mod'} == 1) {
     write_results(\@out, $opts->{'o'}, $opts->{'f'}, $traffic_light);
     return ($traffic_light);
-  } else {
+  } else { # return array ref when in test mode, instead of writing to file
     return (\@out, $traffic_light);
   }
 }
@@ -300,9 +303,8 @@ sub get_uuid {
 }
 
 sub validate_bam {
-  my ($sample_ID, $is_normals, $align_file, $check_all) = @_;
+  my ($sample_ID, $is_normals, $align_file, $check_all, $count_base_number) = @_; # $count_base_number is for testing the script
   my $bam_state = 'failed:';
-  my $count_base_number =  1_000_000; # for testing the script
 
   if ($is_normals !~ m/^yes$|^y$|^no$|^n$/i) {
     $bam_state .= $FAIL_CODE_010."; ";
@@ -523,7 +525,7 @@ sub validate_bam {
         my $end = time;
         my $elapsed = $end - $start;
         $start = $end;
-        warn "$processed_x_mill million reads processed [time elapsed: ${elapsed}s].\n";
+        warn "$processed_x_mill million ($processed_x) reads processed [time elapsed: ${elapsed}s].\n";
 
         my $not_found = '';
         for my $rg_header (keys %{$headers{'RG'}}) {
@@ -535,7 +537,7 @@ sub validate_bam {
         $not_found =~ s/^ //;
         if ($not_found ne '') {
           if ($check_all == 1) {
-            warn "checked $processed_x_mill millions reads, reads with RG:$not_found not found, continue to the next million!\n";
+            warn "checked $processed_x_mill million ($processed_x) reads, reads with RG:$not_found not found, continue to the next million!\n";
           } else {
             warn "checked 1st million ($processed_x) reads, reads with RG:$not_found not found, use '--check-all'!\n";
             $bam_state .= $FAIL_CODE_130."; ";
