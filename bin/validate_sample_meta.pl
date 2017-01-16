@@ -60,7 +60,7 @@ validate_smaple_meta.pl - Validate sample meta data and coresponding bam files, 
 validate_smaple_meta.pl [options]
 
   Required parameters:
-    -in          -i    Input file.
+    -in          -i    Input file. First column must be DONOR_ID.
     -out         -o    Output file (It'll be in the format as specified with '-format'. Extension name will be added when missing).
     -format      -f    Input file format (xlsx, xls or tsv. Optional, default to tsv).
     -check-all   -a    Optional, check all reads in a bam instead of the first million reads. Use when some of RG IDs were not found in the first million reads.
