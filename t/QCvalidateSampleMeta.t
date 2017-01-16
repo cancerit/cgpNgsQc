@@ -19,8 +19,9 @@ my $test_sample_1_file = File::Spec->catfile($test_data,'test_sample.1.bam');
 
 subtest 'Initialisation checks' => sub {
   local $SIG{__WARN__} = sub {};
+  my $tmp = File::Temp->new(TEMPLATE => '/tmp/sampleValidation_outputXXXXXX', SUFFIX => '.txt');
   use_ok($MODULE);
-  new_ok($MODULE => [{ i => $test_xlsx_file, o => 'test_output', f => 'xlsx', a => 0}]);
+  new_ok($MODULE => [{ i => $test_xlsx_file, o => $tmp, f => 'xlsx', a => 0}]);
 };
 
 subtest 'bam_has_reads_more_than_threshold' => sub {
