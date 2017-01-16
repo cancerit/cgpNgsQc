@@ -8,7 +8,7 @@ use Const::Fast qw(const);
 use Carp;
 use Cwd;
 
-use Spreadsheet::Read qw(ReadData);
+use Spreadsheet::Read;
 use Spreadsheet::WriteExcel; # to write xls output
 use Excel::Writer::XLSX; # to write xlsx output
 use Bio::DB::HTS;
@@ -87,7 +87,7 @@ sub input_to_array {
   my @in;
   ### read in input as array of lines (concatenated columns with tabs)
   if ($format eq 'xlsx'|| $format eq 'xls') {
-    my $book = ReadData ($input);
+    my $book = ReadData($input);
     my @rows = Spreadsheet::Read::rows($book->[1]);
     foreach my $row (@rows) {
       foreach my $cell (@$row) {
