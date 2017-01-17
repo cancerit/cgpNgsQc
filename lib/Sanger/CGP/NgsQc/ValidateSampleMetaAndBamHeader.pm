@@ -8,6 +8,9 @@ use Const::Fast qw(const);
 use Carp;
 use Cwd;
 
+use File::ShareDir qw(dist_dir);
+use List::Util qw(first);
+use FindBin qw($Bin);
 use Spreadsheet::Read;
 use Spreadsheet::WriteExcel; # to write xls output
 use Excel::Writer::XLSX; # to write xlsx output
@@ -28,38 +31,29 @@ const my $HEADER_SAMPLE_UUID => 'Sample_UUID';
 const my $HEADER_BAM_MD5 => 'bam_md5sum';
 const my $HEADER_BAM_STATE => 'bam_state';
 
-const my $FAIL_CODE_010 => 'invalid is_normal value';           # can not find the bam file;
-const my $FAIL_CODE_020 => 'bam is not found';                  # can not find the bam file;
-const my $FAIL_CODE_021 => 'bam has too few reads';             # can not find the bam file;
-const my $FAIL_CODE_030 => 'no RG line';                        # bam header has no RG line;
-const my $FAIL_CODE_031 => 'duplicated RG ID in header';        # bam header has duplicatd RG IDs;
-const my $FAIL_CODE_040 => 'no ID';                             # Each RG line has to have an unique ID (of other RG lines);
-# const my $FAIL_CODE_050 => 'no CN';                             # Each RG line has to have an CN tag;
-const my $FAIL_CODE_060 => 'no LB';                             # Each RG line has to have an LB tag;
-const my $FAIL_CODE_070 => 'no PL';                             # Each RG line has to have an PL tag;
-const my $FAIL_CODE_080 => 'invalid PL';                        # Valid PL values are: CAPILLARY, LS454, ILLUMINA, SOLID, HELICOS, IONTORRENT, ONT, and PACBIO. Error will be give for other values.
-const my $FAIL_CODE_090 => 'no SM';                             # Each RG line has to have an SM tag.
-const my $FAIL_CODE_100 => 'SM not matching';                   # In one of the RG lines, SM value does not match to the Sample_ID in the excel file;
-const my $FAIL_CODE_110 => 'read has no RG ID';                 # One or more reads have no RG ID.
-const my $FAIL_CODE_120 => 'read has invalid RG ID';            # One or more reads have RG ID not defined in the header.
-const my $FAIL_CODE_130 => 'not all RG found, use --check-all'; # Not all RG IDs were found in the first million reads, please use --check-all to check all reads in the bam.
-const my $FAIL_CODE_140 => 'checked all, not all RG found';     # Checked all reads in the bam not all RG IDs were found.
+const my %FAIL_CODES => (
+  '010' => 'invalid is_normal value',           # can not find the bam file;
+  '020' => 'bam is not found',                  # can not find the bam file;
+  '021' => 'bam has too few reads',             # can not find the bam file;
+  '030' => 'no RG line',                        # bam header has no RG line;
+  '031' => 'duplicated RG ID in header',        # bam header has duplicatd RG IDs;
+  '040' => 'no ID',                             # Each RG line has to have an unique ID (of other RG lines);
+  # const my $FAIL_CODE_050 => 'no CN',                             # Each RG line has to have an CN tag;
+  '060' => 'no LB',                             # Each RG line has to have an LB tag;
+  '070' => 'no PL',                             # Each RG line has to have an PL tag;
+  '080' => 'invalid PL',                        # Valid PL values are: CAPILLARY, LS454, ILLUMINA, SOLID, HELICOS, IONTORRENT, ONT, and PACBIO. Error will be give for other values.
+  '090' => 'no SM',                             # Each RG line has to have an SM tag.
+  '100' => 'SM not matching',                   # In one of the RG lines, SM value does not match to the Sample_ID in the excel file;
+  '110' => 'read has no RG ID',                 # One or more reads have no RG ID.
+  '120' => 'read has invalid RG ID',            # One or more reads have RG ID not defined in the header.
+  '130' => 'not all RG found, use --check-all', # Not all RG IDs were found in the first million reads, please use --check-all to check all reads in the bam.
+  '140' => 'checked all, not all RG found',     # Checked all reads in the bam not all RG IDs were found.
+);
 
-my %valid_sq_hash;
-while (<DATA>) { #TODO need a better place for this block
-  if ($_ =~ /^\@SQ/) {
-    my ($sn) = "$_\t" =~ m/SN:([^\t]+)/;
-    my ($ln) = "$_\t" =~ m/LN:([^\t]+)/;
-    my ($as) = "$_\t" =~ m/AS:([^\t]+)/;
-    my ($m5) = "$_\t" =~ m/M5:([^\t]+)/;
-    my ($sp) = "$_\t" =~ m/SP:([^\t]+)/;
-    if (defined $sn && defined $ln && defined $as && defined $m5 && defined $sp) {
-      $valid_sq_hash{$sn} = {LN => $ln,	AS => $as,	M5 => $m5,	SP => $sp};
-    } else {
-      croak "bad SQ line in DATA: $_. $!\n";
-    }
-  }
-}
+const my @VALID_PLATFORM => qw(CAPILLARY ILLUMINA LS454 SOLID HELICOS IONTORRENT ONT PACBIO);
+const my $VALID_IS_NORMALS => qr/^yes$|^y$|^no$|^n$/i;
+
+const my $FMT_ERR => qq{--------\nError: %s\n--------\n};
 
 1;
 
@@ -73,10 +67,11 @@ sub new {
 
 sub _init {
   my ($self, $options) = @_;
-  croak("--------\nError: can not find input file $options->{'i'}. $!\n--------\n") unless (-e $options->{'i'});
-  croak("--------\nError: output file $options->{'o'} is not writable. $!\n--------\n") unless (-w $options->{'o'});
+  croak sprintf $FMT_ERR, "can not find input file $options->{'i'}. $!" unless (-e $options->{'i'});
+  croak sprintf $FMT_ERR, "output file $options->{'o'} is not writable. $!" unless (-w $options->{'o'});
   $options->{'mod'} = 1; # not in testing mode
   $options->{'count_base_number'} = 1_000_000;
+  $options->{'genome_build'} = 'GRCh37d5' unless (exists $options->{'genome_build'}); #TODO may need a dict for this option
   my $valid_status = validate_samples($options);
   $self->{'valid_status'} = $valid_status;
   return 1;
@@ -97,7 +92,7 @@ sub input_to_array {
       push @in, (join "\t", @$row);
     }
   } else { # assume it's a tsv
-    open my $FH, '<', $input or croak("--------\nError: trying to open input file $input: $!\n--------\n");
+    open my $FH, '<', $input or confess sprintf $FMT_ERR, "trying to open input file $input: $!";
     chomp(@in = <$FH>);
     close $FH;
   }
@@ -108,7 +103,7 @@ sub validate_samples {
   my ($opts) = @_;
   my $in_array;
   if (! -e $opts->{'i'}) {
-    die ("--------\nError: Can not find input $opts->{'i'}\n--------\n");
+    confess sprintf $FMT_ERR, "can not find input $opts->{'i'}";
   }
   $in_array = input_to_array($opts->{'i'}, $opts->{'f'});
 
@@ -124,17 +119,17 @@ sub validate_samples {
     warn "--------\nTake the first line as header line.\n";
     $header_line = $lines[0]; shift @lines;
     # assign column index
-    my @colnames = split("\t", $header_line);
+    my @colnames = split "\t", $header_line;
     my %header_checks;
-    my @temp = split(" ", $HEADER_IS_NORMAL); my $header_is_normal_match = $temp[0];
-    for (my $i = 0; $i < scalar @colnames; $i++) {
+    my @temp = split " ", $HEADER_IS_NORMAL; my $header_is_normal_match = $temp[0];
+    for my $i (0..$#colnames) {
       if ($colnames[$i] =~ m/$HEADER_DONOR_ID/i) {
         $donor_index = $i;
         if (! exists $header_checks{$HEADER_DONOR_ID}) {
           warn "Column $colnames[$i]:$donor_index -> $HEADER_DONOR_ID\n";
           $header_checks{$HEADER_DONOR_ID} = 1;
         } else {
-          die("--------\nError: Duplicated header $HEADER_DONOR_ID found!\n--------\n");
+          croak sprintf $FMT_ERR, "Duplicated header $HEADER_DONOR_ID found!";
         }
       } elsif ($colnames[$i] =~ m/$HEADER_TISSUE_ID/i) {
         $tissue_index = $i;
@@ -142,7 +137,7 @@ sub validate_samples {
         if (! exists $header_checks{$HEADER_TISSUE_ID}) {
           $header_checks{$HEADER_TISSUE_ID} = 1;
         } else {
-          die("--------\nError: Duplicated header $HEADER_TISSUE_ID found!\n--------\n");
+          croak sprintf $FMT_ERR, "Duplicated header $HEADER_TISSUE_ID found!";
         }
       } elsif ($colnames[$i] =~ m/$header_is_normal_match/i) {
         $is_normal_index = $i;
@@ -150,7 +145,7 @@ sub validate_samples {
         if (! exists $header_checks{$HEADER_IS_NORMAL}) {
           $header_checks{$HEADER_IS_NORMAL} = 1;
         } else {
-          die("--------\nError: Duplicated header $HEADER_IS_NORMAL found!\n--------\n");
+          croak sprintf $FMT_ERR, "Duplicated header $HEADER_IS_NORMAL found!";
         }
       } elsif ($colnames[$i] =~ m/$HEADER_SAMPLE_ID/i) {
         $sample_index = $i;
@@ -158,7 +153,7 @@ sub validate_samples {
         if (! exists $header_checks{$HEADER_SAMPLE_ID}) {
           $header_checks{$HEADER_SAMPLE_ID} = 1;
         } else {
-          die("--------\nError: Duplicated header $HEADER_SAMPLE_ID found!\n--------\n");
+          croak sprintf $FMT_ERR, "Duplicated header $HEADER_SAMPLE_ID found!";
         }
       } elsif ($colnames[$i] =~ m/$HEADER_BAM/i) {
         $bam_index = $i;
@@ -166,25 +161,25 @@ sub validate_samples {
         if (! exists $header_checks{$HEADER_BAM}) {
           $header_checks{$HEADER_BAM} = 1;
         } else {
-          die("--------\nError: Duplicated header $HEADER_BAM found!\n--------\n");
+          croak sprintf $FMT_ERR, "Duplicated header $HEADER_BAM found!";
         }
       }
     }
 
-    if (!exists $header_checks{$HEADER_DONOR_ID}) {die("--------\nError: $HEADER_DONOR_ID column is missing!\n--------\n");};
-    if (!exists $header_checks{$HEADER_TISSUE_ID}) {die("--------\nError: $HEADER_TISSUE_ID column is missing!\n--------\n");};
-    if (!exists $header_checks{$HEADER_IS_NORMAL}) {die("--------\nError: $HEADER_IS_NORMAL column is missing!\n--------\n");};
-    if (!exists $header_checks{$HEADER_SAMPLE_ID}) {die("--------\nError: $HEADER_SAMPLE_ID column is missing!\n--------\n");};
-    if (!exists $header_checks{$HEADER_BAM}) {die("--------\nError: $HEADER_BAM column is missing!\n--------\n");};
+    if (!exists $header_checks{$HEADER_DONOR_ID}) {croak sprintf $FMT_ERR, "$HEADER_DONOR_ID column is missing!";};
+    if (!exists $header_checks{$HEADER_TISSUE_ID}) {croak sprintf $FMT_ERR, "$HEADER_TISSUE_ID column is missing!";};
+    if (!exists $header_checks{$HEADER_IS_NORMAL}) {croak sprintf $FMT_ERR, "$HEADER_IS_NORMAL column is missing!";};
+    if (!exists $header_checks{$HEADER_SAMPLE_ID}) {croak sprintf $FMT_ERR, "$HEADER_SAMPLE_ID column is missing!";};
+    if (!exists $header_checks{$HEADER_BAM}) {croak sprintf $FMT_ERR, "$HEADER_BAM column is missing!";};
 
   } else {
-    warn ("Found no header, assume following:\n  column 1: $HEADER_DONOR_ID\n  column 2: $HEADER_TISSUE_ID\n  column 3: $HEADER_IS_NORMAL\n  column 4: $HEADER_SAMPLE_ID\n  column 5: $HEADER_BAM\n");
-    my @temp = split("\t", $lines[0]);
+    warn "Found no header, assume following:\n  column 1: $HEADER_DONOR_ID\n  column 2: $HEADER_TISSUE_ID\n  column 3: $HEADER_IS_NORMAL\n  column 4: $HEADER_SAMPLE_ID\n  column 5: $HEADER_BAM\n";
+    my @temp = split "\t", $lines[0];
     if (scalar @temp >= 5) {
       ($donor_index, $tissue_index, $is_normal_index, $sample_index, $bam_index) = (0, 1, 2, 3, 4);
       $header_line = "$HEADER_DONOR_ID\t$HEADER_TISSUE_ID\t$HEADER_IS_NORMAL\t$HEADER_SAMPLE_ID\t$HEADER_BAM"."\t" x (scalar @temp - 5);
     } else {
-      die("--------\nError: Require 5 columns, ".scalar @temp." found!\n--------\n");
+      croak sprintf $FMT_ERR, "Require 5 columns, ".scalar @temp." found!";
     }
   }
   warn "--------\n\n";
@@ -193,8 +188,8 @@ sub validate_samples {
   my ($in_volume,$in_directories,$in_file_name) = File::Spec->splitpath($opts->{'i'});
   ### store IDs and check if there's duplicated sample_id or relative_file_path
   my (%sample_id_checks, %bam_path_checks, @donor_ids, @tissue_ids, @is_normals, @sample_ids, @bam_files);
-  for (my $i=0; $i < scalar @lines; $i++) {
-    my @temp = split("\t", $lines[$i]);
+  for my $i(0..$#lines) {
+    my @temp = split "\t", $lines[$i];
     if (scalar @temp == $ncol) {
       my ($sample_id, $bam) = ($temp[$sample_index], $temp[$bam_index]);
       $bam =~ s/^\s+|\s+$//g; #trimming off leading and tailing spaces in file path
@@ -202,18 +197,18 @@ sub validate_samples {
       if (! exists $sample_id_checks{$sample_id}) {
         $sample_id_checks{$sample_id} = 1; push @sample_ids, $sample_id;
       } else {
-        die("--------\nError: Duplicated $HEADER_SAMPLE_ID found for $sample_id!\n--------\n");
+        croak sprintf $FMT_ERR, "Duplicated $HEADER_SAMPLE_ID found for $sample_id!";
       }
       if (! exists $bam_path_checks{$bam}) {
         $bam_path_checks{$bam} = 1; push @bam_files, $bam;
       } else {
-        die("--------\nError: Duplicated $HEADER_BAM found: $bam!\n--------\n");
+        croak sprintf $FMT_ERR, "Duplicated $HEADER_BAM found: $bam!";
       }
       push @is_normals, $temp[$is_normal_index];
       push @donor_ids, $temp[$donor_index];
       push @tissue_ids, $temp[$tissue_index];
     } else {
-      die("--------\nError: Expected $ncol columns, found ".scalar @temp." on line:$lines[$i]\n--------\n");
+      croak sprintf $FMT_ERR, "Expected $ncol columns, found ".scalar @temp." on line:$lines[$i]";
     }
   }
 
@@ -222,16 +217,16 @@ sub validate_samples {
   my @bam_states;
   if (scalar @sample_ids == scalar @lines && scalar @sample_ids == scalar @bam_files && scalar @sample_ids == scalar @donor_ids
     && scalar @sample_ids == scalar @tissue_ids && scalar @sample_ids == scalar @is_normals) {
-    push @out, $header_line."\t".$HEADER_BAM_STATE;
-    for (my $i = 0;$i < scalar @sample_ids; $i++) {
+    push @out, "$header_line\t$HEADER_BAM_STATE";
+    for my $i(0..$#sample_ids) {
       warn "#--- processing sample: $sample_ids[$i]\n";
-      my $bam_state = validate_bam($sample_ids[$i], $is_normals[$i], $bam_files[$i], $opts->{'a'}, $opts->{'count_base_number'});
+      my $bam_state = validate_bam($sample_ids[$i], $is_normals[$i], $bam_files[$i], $opts->{'a'}, $opts->{'genome_build'}, $opts->{'count_base_number'});
       push @bam_states, $bam_state;
-      push @out, $lines[$i]."\t".$bam_state;
+      push @out, "$lines[$i]\t$bam_state";
       warn "done! ---#\n";
     }
   } else {
-    die("--------\nError: script error 001: Different length of sample_ids and bams!\n--------\n"); # should never happen
+    confess sprintf $FMT_ERR, "script error 001: Different length of sample_ids and bams!"; # should never happen
   }
 
   for my $bam_state (@bam_states) {
@@ -245,7 +240,7 @@ sub validate_samples {
   if ($traffic_light == 1) {
     #start to produce UUIDs and md5sums
     @out = ();
-    push @out, $header_line."\t".$HEADER_BAM_STATE."\t".$HEADER_DONOR_UUID."\t".$HEADER_TISSUE_UUID."\t".$HEADER_SAMPLE_UUID."\t".$HEADER_BAM_MD5;
+    push @out, "$header_line\t$HEADER_BAM_STATE\t$HEADER_DONOR_UUID\t$HEADER_TISSUE_UUID\t$HEADER_SAMPLE_UUID\t$HEADER_BAM_MD5";
     my (%exist_donor_uuid, %exist_tissue_uuid);
     for (my $i = 0;$i < scalar @bam_files; $i++) {
       my ($donor_uuid, $tissue_uuid, $sample_uuid, $md5sum);
@@ -272,23 +267,23 @@ sub validate_samples {
       my $left = scalar @bam_files - $i - 1;
       warn "generating md5sum for: $bam_files[$i]. [$left bam(s) to go]\n";
       $md5sum = get_md5sum($bam_files[$i]);
-      push @out, $lines[$i]."\t".$bam_states[$i]."\t".$donor_uuid."\t".$tissue_uuid."\t".$sample_uuid."\t".$md5sum;
+      push @out, "$lines[$i]\t$bam_states[$i]\t$donor_uuid\t$tissue_uuid\t$sample_uuid\t$md5sum";
       warn "done!\n--------\n";
     }
   }
 
   if ($opts->{'mod'} == 1) {
     write_results(\@out, $opts->{'o'}, $opts->{'f'}, $traffic_light);
-    return ($traffic_light);
+    return $traffic_light;
   } else { # return array ref when in test mode, instead of writing to file
-    return (\@out, $traffic_light);
+    return \@out, $traffic_light;
   }
 }
 
 sub get_md5sum {
   my $file = shift;
-  open(FILE, "<", $file);
-  my $cksum = md5_hex(<FILE>);
+  open my $FILE, "<", $file;
+  my $cksum = md5_hex(<$FILE>);
   if ($cksum) {
     return $cksum;
   } else {
@@ -303,113 +298,91 @@ sub get_uuid {
 }
 
 sub validate_bam {
-  my ($sample_ID, $is_normals, $align_file, $check_all, $count_base_number) = @_; # $count_base_number is for testing the script
-  my $bam_state = 'failed:';
+  my ($sample_ID, $is_normals, $align_file, $check_all, $genome_build, $count_base_number) = @_; # $count_base_number is for testing the script
+  my @bam_state;
 
-  if ($is_normals !~ m/^yes$|^y$|^no$|^n$/i) {
-    $bam_state .= $FAIL_CODE_010."; ";
+  if ($is_normals !~ $VALID_IS_NORMALS) {
+    push @bam_state, $FAIL_CODES{'010'};
   }
 
   if (! -e $align_file) {
     warn "can not find the file: $align_file\n";
-    return $bam_state.$FAIL_CODE_020.";";
+    return 'failed:'.join '; ', @bam_state, $FAIL_CODES{'020'};
   }
 
   warn "--------\nstart to validate alignment file: $align_file\n--------\n";
-  my $sam = Bio::DB::HTS->new(-bam => $align_file);
-  my @lines = split "\n", $sam->header->text;
+  my $header_sets = bam_header_to_hash($align_file);
   my %headers; # to handle duplicates!
 
-  my (@RG_lines, @SQ_lines, @PG_lines);
-  for(@lines) {
-    push @RG_lines, $_ if(index($_,'@RG') == 0);
-    push @SQ_lines, $_ if(index($_,'@SQ') == 0);
-    push @PG_lines, $_ if(index($_,'@PG') == 0);
-  }
-
-  if(scalar @RG_lines != 0) {
+  if (exists $header_sets->{RG}) {
     my %reported_error;
-    for (@RG_lines) {
-      my ($id) = "$_\t" =~ m/ID:([^\t]+)/;
-      if (defined $id) {
-        if (! exists $headers{'RG'}{$id} ) {
-          $headers{'RG'}{$id} = 0; # handle duplicates also = 1 when rg found in a read.
-          my ($pl) = "$_\t" =~ m/PL:([^\t]+)/;
-          if (! defined $pl && ! exists $reported_error{$FAIL_CODE_070}) {
-            warn "no PL for RG $id.\n";
-            $reported_error{$FAIL_CODE_070} = 1;
-            $bam_state .= $FAIL_CODE_070."; ";
+    for my $rg_line (@{$header_sets->{RG}}) {
+      if (exists $rg_line->{ID}) {
+        if (! exists $headers{'RG'}{$rg_line->{ID}} ) {
+          $headers{'RG'}{$rg_line->{ID}} = 0; # handle duplicates also = 1 when rg found in a read.
+          if (! exists $rg_line->{PL} && ! exists $reported_error{$FAIL_CODES{'070'}}) {
+            warn "no PL for RG $rg_line->{ID}.\n";
+            $reported_error{$FAIL_CODES{'070'}} = 1;
+            push @bam_state, $FAIL_CODES{'070'};
           } else {
-            if ($pl !~ m/^CAPILLARY$|^ILLUMINA$|^LS454$|^SOLID$|^HELICOS$|^IONTORRENT$|^ONT$|^PACBIO$/ && ! exists $reported_error{$FAIL_CODE_080}) {
-              warn "bad PL for RG $id.\n";
-              $reported_error{$FAIL_CODE_080} = 1;
-              $bam_state .= $FAIL_CODE_080."; ";
+            if (! defined(first { $_ eq $rg_line->{PL} } @VALID_PLATFORM) && ! exists $reported_error{$FAIL_CODES{'080'}}) {
+              warn "bad PL for RG $rg_line->{ID}.\n";
+              $reported_error{$FAIL_CODES{'080'}} = 1;
+              push @bam_state, $FAIL_CODES{'080'};
             }
           }
-          my ($lb) = "$_\t" =~ m/LB:([^\t]+)/;
-          if (! defined $lb && ! exists $reported_error{$FAIL_CODE_060}) {
-            warn "no LB for RG $id.\n";
-            $reported_error{$FAIL_CODE_060} = 1;
-            $bam_state .= $FAIL_CODE_060."; ";
+          if (! exists $rg_line->{LB} && ! exists $reported_error{$FAIL_CODES{'060'}}) {
+            warn "no LB for RG $rg_line->{ID}.\n";
+            $reported_error{$FAIL_CODES{'060'}} = 1;
+            push @bam_state, $FAIL_CODES{'060'};
           }
-
-          # my ($cn) = "$_\t" =~ m/CN:([^\t]+)/;
-          # warn "no CN for RG $id.\n" if (! defined $cn);
-          # $bam_state .= $FAIL_CODE_050."; " if (! defined $cn);
-          my ($sm) = "$_\t" =~ m/SM:([^\t]+)/;
-          if (! defined $sm && ! exists $reported_error{$FAIL_CODE_090}) {
-            warn "no SM for RG $id.\n";
-            $reported_error{$FAIL_CODE_090} = 1;
-            $bam_state .= $FAIL_CODE_090."; ";
-          } elsif ($sm ne $sample_ID && ! exists $reported_error{$FAIL_CODE_100}) {
-            warn "bad SM for RG $id.\n";
-            $reported_error{$FAIL_CODE_100} = 1;
-            $bam_state .= $FAIL_CODE_100."; ";
+          if (! exists $rg_line->{SM} && ! exists $reported_error{$FAIL_CODES{'090'}}) {
+            warn "no SM for RG $rg_line->{ID}.\n";
+            $reported_error{$FAIL_CODES{'090'}} = 1;
+            push @bam_state, $FAIL_CODES{'090'};
+          } elsif ($rg_line->{SM} ne $sample_ID && ! exists $reported_error{$FAIL_CODES{'100'}}) {
+            warn "bad SM for RG $rg_line->{RG}.\n";
+            $reported_error{$FAIL_CODES{'100'}} = 1;
+            push @bam_state, $FAIL_CODES{'100'};
           }
         } else {
-          if (! exists $reported_error{$FAIL_CODE_031}) {
+          if (! exists $reported_error{$FAIL_CODES{'031'}}) {
             warn "duplicated RG ID in header.\n";
-            $reported_error{$FAIL_CODE_031} = 1;
-            $bam_state .= $FAIL_CODE_031."; ";
+            $reported_error{$FAIL_CODES{'031'}} = 1;
+            push @bam_state, $FAIL_CODES{'031'};
           }
         }
       }
     }
   } else {
     warn "no RG lines!\n";
-    $bam_state .= $FAIL_CODE_030."; ";
+    push @bam_state, $FAIL_CODES{'030'};
   }
 
-  my $enough_reads = bam_has_reads_more_than_threshold($align_file, $count_base_number);
-  if ($enough_reads ne 'yes') {
-    warn "Alignment file: $align_file has too few reads ($enough_reads reads found)."."\n";
-    $bam_state .= $FAIL_CODE_021."; ";
+  my ($enough_reads, $number_of_counted) = bam_has_reads_more_than_threshold($align_file, $count_base_number);
+  if ($enough_reads == 0) {
+    warn "Alignment file: $align_file has too few reads ($number_of_counted reads found).\n";
+    push @bam_state, $FAIL_CODES{'021'};
   }
-
-  $bam_state =~ s/\, $//;
 
   my $match_pp_remapped_sq_pg = 0;
 
-  if ($bam_state eq 'failed:') { # check if it's a pp_remapped_bam
-    my %valid_pg_hash;
-    if(scalar @SQ_lines != 0) {
-      for (@SQ_lines) {
-        my ($sn) = "$_\t" =~ m/SN:([^\t]+)/;
-        my ($ln) = "$_\t" =~ m/LN:([^\t]+)/;
-        my ($as) = "$_\t" =~ m/AS:([^\t]+)/;
-        my ($m5) = "$_\t" =~ m/M5:([^\t]+)/;
-        my ($sp) = "$_\t" =~ m/SP:([^\t]+)/;
-        if (defined $sn && defined $ln && defined $as && defined $m5 && defined $sp) {
-          if (! exists $headers{'SQ'}{$sn} ) {
-            $headers{'SQ'}{$sn} = 1;
-            if (exists $valid_sq_hash{$sn} && $valid_sq_hash{$sn}{LN} eq $ln && $valid_sq_hash{$sn}{AS} eq $as && $valid_sq_hash{$sn}{M5} eq $m5 && $valid_sq_hash{$sn}{SP} eq $sp) {
+  if (scalar @bam_state == 0) { # check if it's a pp_remapped_bam
+    my $valid_sq_hash_ref = sq_hash_from_bam_header($genome_build);
+    my %valid_sq_hash = %$valid_sq_hash_ref;
+    if(exists $header_sets->{SQ}) {
+      for my $sq_line (@{$header_sets->{SQ}}) {
+        if (exists $sq_line->{SN} && exists $sq_line->{LN} && exists $sq_line->{AS} && exists $sq_line->{M5} && exists $sq_line->{SP}) {
+          if (! exists $headers{'SQ'}{$sq_line->{SN}} ) {
+            $headers{'SQ'}{$sq_line->{SN}} = 1;
+            if (exists $valid_sq_hash{$sq_line->{SN}} && $valid_sq_hash{$sq_line->{SN}}{LN} eq $sq_line->{LN} && $valid_sq_hash{$sq_line->{SN}}{AS} eq $sq_line->{AS} && $valid_sq_hash{$sq_line->{SN}}{M5} eq $sq_line->{M5} && $valid_sq_hash{$sq_line->{SN}}{SP} eq $sq_line->{SP}) {
               $match_pp_remapped_sq_pg = 1;
             } else {
               warn "sq line does not match to a pp_remapped_bam sq header line!\n";
               $match_pp_remapped_sq_pg = 0; last;
             }
           } else {
-            warn "duplicated sq name found: $sn!\n";
+            warn "duplicated sq name found: $sq_line->{SN}!\n";
             $match_pp_remapped_sq_pg = 0; last;
           }
         } else {
@@ -431,25 +404,23 @@ sub validate_bam {
       }
     }
 
-    if(scalar @PG_lines != 0 && $match_pp_remapped_sq_pg == 1 ) {
+    if(exists $header_sets->{PG} && $match_pp_remapped_sq_pg == 1 ) {
       my $valid_pg_hash_ref = valid_pp_remapped_pg_hash();
-      %valid_pg_hash = %$valid_pg_hash_ref;
+      my %valid_pg_hash = %$valid_pg_hash_ref;
       my @PG_bwa_lines;
-      for (@PG_lines) {
-        my ($pn) = "$_\t" =~ m/PN:([^\t]+)/;
-        if(defined $pn && $pn eq $valid_pg_hash{PN}) {
-          push @PG_bwa_lines, $_;
+      for my $pg_line (@{$header_sets->{PG}}) {
+        if(exists $pg_line->{PN} && $pg_line->{PN} eq $valid_pg_hash{PN}) {
+          push @PG_bwa_lines, $pg_line;
         }
       }
 
       if (scalar @PG_bwa_lines != 0) {
-        for (@PG_bwa_lines) {
-          my ($cl) = "$_\t" =~ m/CL:([^\t]+)/;
-          if (defined $cl) {
-            my @words = split(/\s+/, $cl);
+        for my $pg_line (@PG_bwa_lines) {
+          if (exists $pg_line->{CL}) {
+            my @words = split /\s+/, $pg_line->{CL};
             my %valid_words;
             my $count = 0;
-            for (my $i = 0; $i < scalar @words; $i++) {
+            for my $i (0..$#words) {
               if ($words[$i] eq '-K' && ! exists $valid_words{'-K'}) {
                 $valid_words{$words[$i]} = 1;
                 if ($words[$i + 1] == $valid_pg_hash{CL}{'-K'}) {
@@ -488,6 +459,7 @@ sub validate_bam {
       warn "this is a raw_bam!\n";
     }
 
+    my $sam = Bio::DB::HTS->new(-bam => $align_file);
     my $bam = $sam->hts_file;
     my $header = $bam->header_read;
     my $processed_x = 0;
@@ -506,17 +478,17 @@ sub validate_bam {
             $headers{'RG'}{$rg} = 1;
           }
         } else {
-          if (! exists $reported_error{$FAIL_CODE_120}) {
+          if (! exists $reported_error{$FAIL_CODES{'120'}}) {
             warn "found a read with a RG tag not in header.\n";
-            $reported_error{$FAIL_CODE_120} = 1;
-            $bam_state .= $FAIL_CODE_120."; ";
+            $reported_error{$FAIL_CODES{'120'}} = 1;
+            push @bam_state, $FAIL_CODES{'120'};
           }
         }
       } else {
-        if (! exists $reported_error{$FAIL_CODE_110}) {
+        if (! exists $reported_error{$FAIL_CODES{'110'}}) {
           warn "found a read with no RG tag.\n";
-          $reported_error{$FAIL_CODE_110} = 1;
-          $bam_state .= $FAIL_CODE_110."; ";
+          $reported_error{$FAIL_CODES{'110'}} = 1;
+          push @bam_state, $FAIL_CODES{'110'};
         }
       }
 
@@ -527,20 +499,19 @@ sub validate_bam {
         $start = $end;
         warn "$processed_x_mill million ($processed_x) reads processed [time elapsed: ${elapsed}s].\n";
 
-        my $not_found = '';
+        my @not_found;
         for my $rg_header (keys %{$headers{'RG'}}) {
           if ($headers{'RG'}{$rg_header} == 0) {
-            $not_found .= ' '.$rg_header;
+            push @not_found, $rg_header;
           }
         }
 
-        $not_found =~ s/^ //;
-        if ($not_found ne '') {
+        if (scalar @not_found > 0) {
           if ($check_all == 1) {
-            warn "checked $processed_x_mill million ($processed_x) reads, reads with RG:$not_found not found, continue to the next million!\n";
+            warn "checked $processed_x_mill million ($processed_x) reads, reads with RG:".join ' ', @not_found." not found, continue to the next million!\n";
           } else {
-            warn "checked 1st million ($processed_x) reads, reads with RG:$not_found not found, use '--check-all'!\n";
-            $bam_state .= $FAIL_CODE_130."; ";
+            warn "checked 1st million ($processed_x) reads, reads with RG:".join ', ', @not_found." not found, use '--check-all'!\n";
+            push @bam_state, $FAIL_CODES{'130'};
             last;
           }
         } else {
@@ -553,35 +524,34 @@ sub validate_bam {
     }
 
     if ($check_all == 1) { # when check_all specified and last read is not on a million position.
-      my $not_found = '';
+      my @not_found;
       for my $rg_header (keys %{$headers{'RG'}}) {
         if ($headers{'RG'}{$rg_header} == 0) {
-          $not_found .= ' '.$rg_header;
+          push @not_found, $rg_header;
         }
       }
-      $not_found =~ s/^ //;
-      if ($not_found ne '') {
-        warn "checked all reads ($processed_x in total), reads with RG:$not_found not found!\n";
-        $bam_state .= $FAIL_CODE_140."; ";
+
+      if (scalar @not_found > 0) {
+        warn "checked all reads ($processed_x in total), reads with RG:".join ' ', @not_found." not found!\n";
+        push @bam_state, $FAIL_CODES{'140'};
       } else {
         warn "processed $processed_x reads in total, found all RG IDs in these reads.\n";
       }
     }
 
   } else {
-    warn "this is an invalid bam! Errors are: $bam_state\n";
+    warn "this is an invalid bam! Errors are: ".join '; ', @bam_state.".\n";
   }
 
-  $bam_state =~ s/\s$//;
-  if ($bam_state eq 'failed:' && $match_pp_remapped_sq_pg == 1) { # if reads group of reads do not check out
+  if (scalar @bam_state == 0 && $match_pp_remapped_sq_pg == 1) { # if reads group of reads do not check out
     warn "Conclusion: this is a pp_remapped_bam!\n";
-    return ("pp-remapped");
-  } elsif ($bam_state eq 'failed:' && $match_pp_remapped_sq_pg == 0) {
+    return "pp-remapped";
+  } elsif (scalar @bam_state == 0 && $match_pp_remapped_sq_pg == 0) {
     warn "Conclusion: this is a raw_bam!\n";
-    return ("raw");
+    return "raw";
   } else {
-    warn "Conclusion: this is an invalid bam! Errors are: $bam_state\n";
-    return ($bam_state);
+    warn "Conclusion: this is an invalid bam! Errors are: ".join '; ', @bam_state.".\n";
+    return 'failed:'.join '; ', @bam_state;
   }
 }
 
@@ -590,6 +560,51 @@ sub valid_pp_remapped_pg_hash {
   $valid_pp_remapped_pg_hash{PN} = 'bwa';
   $valid_pp_remapped_pg_hash{CL} = {'/opt/wtsi-cgp/bin/bwa' => 1,  'mem' => 1, '-Y' => 1, '-K' => 100000000, '-p' => 1, '-R' => 1};
   return \%valid_pp_remapped_pg_hash;
+}
+
+sub sq_hash_from_bam_header {
+  my $genome_build = shift;
+  my %valid_sq_hash;
+  my $data_path = "$Bin/../share";
+  $data_path = dist_dir('Sanger-CGP-NgsQc') unless(-e "$data_path/bam_headers");
+  $data_path .= "/bam_headers/$genome_build.header";
+  my $headers = bam_header_to_hash($data_path);
+  my @sq_lines;
+  if (exists $headers->{SQ}) {
+    @sq_lines = @{$headers->{SQ}};
+  } else {
+    confess sprintf $FMT_ERR, "no SQ line found in $data_path: $_. $!";
+  }
+  for my $sq (@sq_lines) {
+    if (exists $sq->{SN} && exists $sq->{LN} && exists $sq->{AS} && exists $sq->{M5} && exists $sq->{SP}) {
+      $valid_sq_hash{$sq->{SN}} = { LN => $sq->{LN},	AS => $sq->{AS},	M5 => $sq->{M5},	SP => $sq->{SP} };
+    } else {
+      confess sprintf $FMT_ERR, "invalid SQ line found in $data_path: $sq->{SN} : $_. $!";
+    }
+  }
+  return \%valid_sq_hash;
+}
+
+sub bam_header_to_hash { # note @CO line is not necessarily tab delimited.
+  my $align_file = shift;
+  my %header_sets;
+
+  my $sam = Bio::DB::HTS->new(-bam => $align_file);
+  my @lines = split "\n", $sam->header->text;
+
+  for my $line (@lines) {
+    chomp $line;
+    my ($type, @bits) = split /\t/, $line;
+    $type =~ s/^\@//;
+    my %fields;
+    for my $bit (@bits) {
+      my ($ft, $val) = $bit =~ m/([^:]+):(.+)/;
+      $fields{$ft}=$val;
+      # warn "adding $type: $ft - $val\n";
+    }
+    push @{$header_sets{$type}}, \%fields;
+  }
+  return \%header_sets;
 }
 
 sub bam_has_reads_more_than_threshold {
@@ -601,24 +616,20 @@ sub bam_has_reads_more_than_threshold {
   my $processed_x = 0;
   my $start = time;
   my $processed_x_mill = 0;
-  my $enough = 'n';
+  my $enough = 0;
 
   while (my $a = $bam->read1($header)) {
     $processed_x += 1;
     if ($processed_x >= $threshold) {
-      $enough = 'yes';
+      $enough = 1;
       last;
     }
   }
 
   my $end = time;
   my $elapsed = $end - $start;
-  warn "counted $processed_x reads [time elapsed: ${elapsed}s]."."\n";
-  if ($enough eq 'yes') {
-    return $enough;
-  } else {
-    return $processed_x;
-  }
+  warn "counted $processed_x reads [time elapsed: ${elapsed}s].\n";
+    return $enough, $processed_x;
 }
 
 sub write_results {
@@ -629,7 +640,7 @@ sub write_results {
     my $worksheet = $workbook->add_worksheet();
     my $row = 0;
     foreach my $line (@$out_array) {
-      my @array = split("\t", $line);
+      my @array = split "\t", $line;
       $worksheet->write_row($row, 0, \@array);
       $row++;
     }
@@ -639,7 +650,7 @@ sub write_results {
     my $worksheet = $workbook->add_worksheet();
     my $row = 0;
     foreach my $line (@$out_array) {
-      my @array = split("\t", $line);
+      my @array = split "\t", $line;
       $worksheet->write_row($row, 0, \@array);
       $row++;
     }
@@ -656,7 +667,7 @@ sub write_results {
 
 sub write_to_file {
   my ($array_ref, $output) = @_;
-  open my $OUT, ">", $output or croak("--------\nCan not open the output: $output to write. $!\n--------\n");
+  open my $OUT, ">", $output or confess sprintf $FMT_ERR, "can not open the output: $output to write. $!";
   foreach my $line (@$array_ref) {
     chomp $line; print $OUT "$line\n";
   }
