@@ -177,7 +177,7 @@ sub validate_samples {
     my @temp = split "\t", $lines[0];
     if (scalar @temp >= 5) {
       ($donor_index, $tissue_index, $is_normal_index, $sample_index, $bam_index) = (0, 1, 2, 3, 4);
-      $header_line = "$HEADER_DONOR_ID\t$HEADER_TISSUE_ID\t$HEADER_IS_NORMAL\t$HEADER_SAMPLE_ID\t$HEADER_BAM"."\t" x (scalar @temp - 5);
+      $header_line = join("\t", ($HEADER_DONOR_ID, $HEADER_TISSUE_ID, $HEADER_IS_NORMAL, $HEADER_SAMPLE_ID, $HEADER_BAM))."\t" x (scalar @temp - 5);
     } else {
       croak sprintf $FMT_ERR, "Require 5 columns, ".scalar @temp." found!";
     }
@@ -240,7 +240,7 @@ sub validate_samples {
   if ($traffic_light == 1) {
     #start to produce UUIDs and md5sums
     @out = ();
-    push @out, "$header_line\t$HEADER_BAM_STATE\t$HEADER_DONOR_UUID\t$HEADER_TISSUE_UUID\t$HEADER_SAMPLE_UUID\t$HEADER_BAM_MD5";
+    push @out, join("\t", ($header_line, $HEADER_BAM_STATE, $HEADER_DONOR_UUID, $HEADER_TISSUE_UUID, $HEADER_SAMPLE_UUID, $HEADER_BAM_MD5));
     my (%exist_donor_uuid, %exist_tissue_uuid);
     for (my $i = 0;$i < scalar @bam_files; $i++) {
       my ($donor_uuid, $tissue_uuid, $sample_uuid, $md5sum);
@@ -267,7 +267,7 @@ sub validate_samples {
       my $left = scalar @bam_files - $i - 1;
       warn "generating md5sum for: $bam_files[$i]. [$left bam(s) to go]\n";
       $md5sum = get_md5sum($bam_files[$i]);
-      push @out, "$lines[$i]\t$bam_states[$i]\t$donor_uuid\t$tissue_uuid\t$sample_uuid\t$md5sum";
+      push @out, join("\t", ($lines[$i], $bam_states[$i], $donor_uuid, $tissue_uuid, $sample_uuid, $md5sum));
       warn "done!\n--------\n";
     }
   }
