@@ -57,15 +57,15 @@ sub setup_options {
             'f' => '',
             );
   GetOptions(
-  				'h|help' => \$opts{'h'},
-					'm|man' => \$opts{'m'},
-					'i|in=s' => \$opts{'i'},
+          'h|help' => \$opts{'h'},
+          'm|man' => \$opts{'m'},
+          'i|in=s' => \$opts{'i'},
           'o|out=s' => \$opts{'o'},
-					'f|format:s' => \$opts{'f'},
+          'f|format:s' => \$opts{'f'},
           'a|check-all' => \$opts{'a'},
-					) or pod2usage(2);
+          ) or pod2usage(2);
 
-	pod2usage(-verbose => 1) if(defined $opts{'h'});
+  pod2usage(-verbose => 1) if(defined $opts{'h'});
   pod2usage(-verbose => 2) if(defined $opts{'m'});
 
   pod2usage(-message => "\nERROR: Option 'i|in' required and the file must exist .", -verbose => 0) if(!defined $opts{'i'} || ! -e $opts{'i'});
