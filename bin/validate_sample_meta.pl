@@ -63,10 +63,16 @@ sub setup_options {
           'o|out=s' => \$opts{'o'},
           'f|format:s' => \$opts{'f'},
           'a|check-all' => \$opts{'a'},
+          'v|version' => \$opts{'v'},
           ) or pod2usage(2);
 
   pod2usage(-verbose => 1) if(defined $opts{'h'});
   pod2usage(-verbose => 2) if(defined $opts{'m'});
+
+  if(defined $opts{'v'}) {
+    print 'VERSION: '.Sanger::CGP::NgsQc::ValidateSampleMetaAndBamHeader->VERSION,"\n";
+    exit 0;
+  }
 
   pod2usage(-message => "\nERROR: Option 'i|in' required and the file must exist .", -verbose => 0) if(!defined $opts{'i'} || ! -e $opts{'i'});
   pod2usage(-message => "\nERROR: Option 'o|out' required.", -verbose => 0) unless(defined $opts{'o'});
@@ -98,6 +104,7 @@ validate_smaple_meta.pl [options]
   Other:
     -help        -h   Brief help message.
     -man         -m   Full documentation.
+    -version      -v  Shows version.
 
 =head1 OPTIONS
 
