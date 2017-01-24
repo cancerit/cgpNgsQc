@@ -3,9 +3,8 @@ cgpNgsQc
 
 Collection of code for checking NSG sequencing results.
 
-| Master | Develop |
-|---|---|
-| [![Build Status](https://travis-ci.org/cancerit/cgpNgsQc.svg?branch=master)](https://travis-ci.org/cancerit/cgpNgsQc) |  [![Build Status](https://travis-ci.org/cancerit/cgpNgsQc.svg?branch=develop)](https://travis-ci.org/cancerit/cgpNgsQc) |
+[![Build Status](https://travis-ci.org/cancerit/cgpNgsQc.svg?branch=master)](https://travis-ci.org/cancerit/cgpNgsQc) : master  
+[![Build Status](https://travis-ci.org/cancerit/cgpNgsQc.svg?branch=develop)](https://travis-ci.org/cancerit/cgpNgsQc) : develop
 
 Dependancies
 ============
