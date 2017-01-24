@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 ########## LICENCE ##########
-# Copyright (c) 2014 Genome Research Ltd.
+# Copyright (c) 2014-2017 Genome Research Ltd.
 #
 # Author: Keiran Raine <cgpit@sanger.ac.uk>
 #
@@ -40,6 +40,9 @@ use Getopt::Long;
 use File::Spec;
 use File::Path qw(make_path);
 use Pod::Usage qw(pod2usage);
+
+use FindBin qw($Bin);
+use lib "$Bin/../lib";
 
 use Sanger::CGP::NgsQc;
 use Sanger::CGP::NgsQc::VerifyBamId;

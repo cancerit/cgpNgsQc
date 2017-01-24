@@ -39,6 +39,9 @@ use Pod::Usage qw(pod2usage);
 use Const::Fast qw(const);
 use Carp;
 
+use FindBin qw($Bin);
+use lib "$Bin/../lib";
+
 use Sanger::CGP::NgsQc::ValidateSampleMetaAndBamHeader;
 
 my $opts = setup_options();
