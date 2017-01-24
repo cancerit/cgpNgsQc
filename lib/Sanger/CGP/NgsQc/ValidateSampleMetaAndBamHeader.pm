@@ -8,6 +8,8 @@ use Const::Fast qw(const);
 use Carp;
 use Cwd;
 
+use Sanger::CGP::NgsQc;
+
 use File::ShareDir qw(dist_dir);
 use List::Util qw(first);
 use FindBin qw($Bin);
