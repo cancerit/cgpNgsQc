@@ -83,7 +83,8 @@ const my %FAIL_CODES => (
   '140' => 'checked all, not all RG found',     # Checked all reads in the bam not all RG IDs were found.
 );
 
-const my @VALID_PLATFORM => qw(CAPILLARY ILLUMINA LS454 SOLID HELICOS IONTORRENT ONT PACBIO);
+#const my @VALID_PLATFORM => qw(CAPILLARY ILLUMINA LS454 SOLID HELICOS IONTORRENT ONT PACBIO);
+const my @VALID_PLATFORM => qw(ILLUMINA); # can only process illinina data
 const my $VALID_IS_NORMALS => qr/^yes$|^y$|^no$|^n$/i;
 
 const my $FMT_ERR => qq{--------\nError: %s\n--------\n};
