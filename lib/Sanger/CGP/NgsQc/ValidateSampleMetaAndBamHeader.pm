@@ -107,8 +107,8 @@ sub _init {
   $options->{'mod'} = 1; # not in testing mode
   $options->{'count_base_number'} = 1_000_000;
   $options->{'genome_build'} = 'GRCh37d5' unless (exists $options->{'genome_build'}); #TODO may need a dict for this option
-  my $valid_status = validate_samples($options);
-  $self->{'valid_status'} = $valid_status;
+  my $validate_status = validate_samples($options);
+  $self->{'validate_status'} = $validate_status;
   return 1;
 }
 
@@ -351,42 +351,48 @@ sub validate_bam {
   if (exists $header_sets->{RG}) {
     my %reported_error;
     for my $rg_line (@{$header_sets->{RG}}) {
-      if (exists $rg_line->{ID}) {
-        if (! exists $headers{'RG'}{$rg_line->{ID}} ) {
+
+      if (! exists $rg_line->{ID} && ! exists $reported_error{$FAIL_CODES{'040'}}) {
+        warn "RG line has no ID.\n";
+        $reported_error{$FAIL_CODES{'040'}} = 1;
+        push @bam_state, $FAIL_CODES{'040'};
+      } elsif (exists $rg_line->{ID}) {
+        if (exists $headers{'RG'}{$rg_line->{ID}} && ! exists $reported_error{$FAIL_CODES{'031'}}) {
+          warn "duplicated RG ID:$rg_line->{ID} in header.\n";
+          $reported_error{$FAIL_CODES{'031'}} = 1;
+          push @bam_state, $FAIL_CODES{'031'};
+        } elsif (! exists $headers{'RG'}{$rg_line->{ID}}) {
           $headers{'RG'}{$rg_line->{ID}} = 0; # handle duplicates also = 1 when rg found in a read.
-          if (! exists $rg_line->{PL} && ! exists $reported_error{$FAIL_CODES{'070'}}) {
-            warn "no PL for RG $rg_line->{ID}.\n";
-            $reported_error{$FAIL_CODES{'070'}} = 1;
-            push @bam_state, $FAIL_CODES{'070'};
-          } else {
-            if (! defined(first { $_ eq $rg_line->{PL} } @VALID_PLATFORM) && ! exists $reported_error{$FAIL_CODES{'080'}}) {
-              warn "bad PL for RG $rg_line->{ID}.\n";
-              $reported_error{$FAIL_CODES{'080'}} = 1;
-              push @bam_state, $FAIL_CODES{'080'};
-            }
-          }
-          if (! exists $rg_line->{LB} && ! exists $reported_error{$FAIL_CODES{'060'}}) {
-            warn "no LB for RG $rg_line->{ID}.\n";
-            $reported_error{$FAIL_CODES{'060'}} = 1;
-            push @bam_state, $FAIL_CODES{'060'};
-          }
-          if (! exists $rg_line->{SM} && ! exists $reported_error{$FAIL_CODES{'090'}}) {
-            warn "no SM for RG $rg_line->{ID}.\n";
-            $reported_error{$FAIL_CODES{'090'}} = 1;
-            push @bam_state, $FAIL_CODES{'090'};
-          } elsif ($rg_line->{SM} ne $sample_ID && ! exists $reported_error{$FAIL_CODES{'100'}}) {
-            warn "bad SM for RG $rg_line->{RG}.\n";
-            $reported_error{$FAIL_CODES{'100'}} = 1;
-            push @bam_state, $FAIL_CODES{'100'};
-          }
-        } else {
-          if (! exists $reported_error{$FAIL_CODES{'031'}}) {
-            warn "duplicated RG ID in header.\n";
-            $reported_error{$FAIL_CODES{'031'}} = 1;
-            push @bam_state, $FAIL_CODES{'031'};
-          }
         }
       }
+
+      if (! exists $rg_line->{PL} && ! exists $reported_error{$FAIL_CODES{'070'}}) {
+        warn "RG line has no PL.\n";
+        $reported_error{$FAIL_CODES{'070'}} = 1;
+        push @bam_state, $FAIL_CODES{'070'};
+      } elsif (! defined(first { $_ eq $rg_line->{PL} } @VALID_PLATFORM) && ! exists $reported_error{$FAIL_CODES{'080'}}) {
+        warn "RG line has invalid PL.\n";
+        $reported_error{$FAIL_CODES{'080'}} = 1;
+        push @bam_state, $FAIL_CODES{'080'};
+      }
+
+      if (! exists $rg_line->{LB} && ! exists $reported_error{$FAIL_CODES{'060'}}) {
+        warn "RG line has no LB\n";
+        $reported_error{$FAIL_CODES{'060'}} = 1;
+        push @bam_state, $FAIL_CODES{'060'};
+      }
+
+      if (! exists $rg_line->{SM} && ! exists $reported_error{$FAIL_CODES{'090'}}) {
+        warn "RG line has no SM.\n";
+        $reported_error{$FAIL_CODES{'090'}} = 1;
+        push @bam_state, $FAIL_CODES{'090'};
+      } elsif ($rg_line->{SM} ne $sample_ID && ! exists $reported_error{$FAIL_CODES{'100'}}) {
+        warn "RG line has invalid SM.\n";
+        $reported_error{$FAIL_CODES{'100'}} = 1;
+        push @bam_state, $FAIL_CODES{'100'};
+      }
+
+
     }
   } else {
     warn "no RG lines!\n";
@@ -542,9 +548,9 @@ sub validate_bam {
 
         if (scalar @not_found > 0) {
           if ($check_all == 1) {
-            warn "checked $processed_x_mill million ($processed_x) reads, reads with RG:".join ' ', @not_found." not found, continue to the next million!\n";
+            warn "checked $processed_x_mill million ($processed_x) reads, reads with RG:".join(' ', @not_found)." not found, continue to the next million!\n";
           } else {
-            warn "checked 1st million ($processed_x) reads, reads with RG:".join ', ', @not_found." not found, use '--check-all'!\n";
+            warn "checked 1st million ($processed_x) reads, reads with RG:".join(', ', @not_found)." not found, use '--check-all'!\n";
             push @bam_state, $FAIL_CODES{'130'};
             last;
           }
@@ -566,7 +572,7 @@ sub validate_bam {
       }
 
       if (scalar @not_found > 0) {
-        warn "checked all reads ($processed_x in total), reads with RG:".join ' ', @not_found." not found!\n";
+        warn "checked all reads ($processed_x in total), reads with RG:".join(' ', @not_found)." not found!\n";
         push @bam_state, $FAIL_CODES{'140'};
       } else {
         warn "processed $processed_x reads in total, found all RG IDs in these reads.\n";
@@ -574,7 +580,7 @@ sub validate_bam {
     }
 
   } else {
-    warn "this is an invalid bam! Errors are: ".join '; ', @bam_state.".\n";
+    warn "this is an invalid bam! Errors are: ".join('; ', @bam_state).".\n";
   }
 
   if (scalar @bam_state == 0 && $match_pp_remapped_sq_pg == 1) { # if reads group of reads do not check out
@@ -584,7 +590,7 @@ sub validate_bam {
     warn "Conclusion: this is a raw_bam!\n";
     return "raw";
   } else {
-    warn "Conclusion: this is an invalid bam! Errors are: ".join '; ', @bam_state.".\n";
+    warn "Conclusion: this is an invalid bam! Errors are: ".join('; ', @bam_state).".\n";
     return 'failed:'.join '; ', @bam_state;
   }
 }
@@ -667,7 +673,7 @@ sub bam_has_reads_more_than_threshold {
 }
 
 sub write_results {
-  my ($out_array, $output, $format, $valid_status) = @_;
+  my ($out_array, $output, $format, $validate_status) = @_;
   if ($format eq 'xlsx') {
     # rename output, if it does not ends with .xlsx
     my $workbook = Excel::Writer::XLSX->new($output);
@@ -693,7 +699,7 @@ sub write_results {
   }
 
   # write an extra output file on sucessful validation if input format is xlsx or xls
-  if ($valid_status && $format =~ m/^xls$|^xlsx$/i) {
+  if ($validate_status && $format =~ m/^xls$|^xlsx$/i) {
     $output =~ s/\.xls$|\.xlsx$/\.tsv/i;
     write_to_file($out_array, $output);
   }
