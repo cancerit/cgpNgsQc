@@ -50,7 +50,7 @@ use Excel::Writer::XLSX; # to write xlsx output
 use Bio::DB::HTS;
 use File::Spec;
 use Data::UUID;
-use Digest::MD5 qw(md5_hex);
+use Digest::file qw(digest_file_hex);
 
 
 const my $HEADER_DONOR_ID => 'Donor_ID';
@@ -102,7 +102,8 @@ sub new {
 sub _init {
   my ($self, $options) = @_;
   croak sprintf $FMT_ERR, "can not find input file $options->{'i'}. $!" unless (-e $options->{'i'});
-  croak sprintf $FMT_ERR, "output file $options->{'o'} is not writable. $!" unless (-w $options->{'o'});
+  open my $OUT, ">", $options->{'o'} or croak sprintf $FMT_ERR, "can not open the output: $options->{'o'} to write. $!";
+  close $OUT;
   $options->{'mod'} = 1; # not in testing mode
   $options->{'count_base_number'} = 1_000_000;
   $options->{'genome_build'} = 'GRCh37d5' unless (exists $options->{'genome_build'}); #TODO may need a dict for this option
@@ -316,8 +317,7 @@ sub validate_samples {
 
 sub get_md5sum {
   my $file = shift;
-  open my $FILE, "<", $file;
-  my $cksum = md5_hex(<$FILE>);
+  my $cksum = digest_file_hex($file, "MD5");
   if ($cksum) {
     return $cksum;
   } else {
