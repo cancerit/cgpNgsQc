@@ -47,7 +47,7 @@ use Sanger::CGP::NgsQc::ValidateSampleMetaAndBamHeader;
 my $opts = setup_options();
 my $obj = Sanger::CGP::NgsQc::ValidateSampleMetaAndBamHeader->new($opts);
 
-if($obj->{'validate_status'}) {
+if($obj->{validate_status}) {
   warn "\n--------\nSamples validated successfully!\n--------\n"; # hide the tsv/xls/xlsx here
 } else {
   warn "\n--------\nValidation failed, please check output:$opts->{'o'} for issues.\n--------\n";
