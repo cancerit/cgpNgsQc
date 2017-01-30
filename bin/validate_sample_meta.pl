@@ -47,8 +47,8 @@ use Sanger::CGP::NgsQc::ValidateSampleMetaAndBamHeader;
 my $opts = setup_options();
 my $obj = Sanger::CGP::NgsQc::ValidateSampleMetaAndBamHeader->new($opts);
 
-if($obj->validate_status) {
-  warn "\n--------\nSamples validated successfully! Please supply the '.tsv' output.\n--------\n"; # hide the tsv/xls/xlsx here
+if($obj->{'validate_status'}) {
+  warn "\n--------\nSamples validated successfully!\n--------\n"; # hide the tsv/xls/xlsx here
 } else {
   warn "\n--------\nValidation failed, please check output:$opts->{'o'} for issues.\n--------\n";
 }
@@ -79,12 +79,12 @@ sub setup_options {
 
   pod2usage(-message => "\nERROR: Option 'i|in' required and the file must exist .", -verbose => 0) if(!defined $opts{'i'} || ! -e $opts{'i'});
   pod2usage(-message => "\nERROR: Option 'o|out' required.", -verbose => 0) unless(defined $opts{'o'});
-  pod2usage(-message => "\nERROR: Option 'f|format' must be be one of the 3 formats tsv|xls|xlsx, default to tsv.", -verbose => 0) if($opts->{'f'} !~ m/^xls$|^xlsx$|^tsv$/i);
-  pod2usage(-message => "\nERROR: Input does not have .xls extension.", -verbose => 0) if($opts->{'f'} =~ m/^xls$/i && $opts->{'i'} !~ m/\.xls$/i);
-  pod2usage(-message => "\nERROR: Input does not have .xlsx extension.", -verbose => 0) if($opts->{'f'} =~ m/^xlsx$/i && $opts->{'i'} !~ m/\.xlsx$/i);
-  pod2usage(-message => "\nERROR: Output does not have .xls extension.", -verbose => 0) if($opts->{'f'} =~ m/^xls$/i && $opts->{'o'} !~ m/\.xls$/i);
-  pod2usage(-message => "\nERROR: Output does not have .xlsx extension.", -verbose => 0) if($opts->{'f'} =~ m/^xlsx$/i && $opts->{'o'} !~ m/\.xlsx$/i);
-  pod2usage(-message => "\nERROR: Input file is the same as output file.", -verbose => 0) if($opts->{'o'} eq $opts->{'o'});
+  pod2usage(-message => "\nERROR: Option 'f|format' must be be one of the 3 formats tsv|xls|xlsx, default to tsv.", -verbose => 0) if($opts{'f'} !~ m/^xls$|^xlsx$|^tsv$/i);
+  pod2usage(-message => "\nERROR: Input does not have .xls extension.", -verbose => 0) if($opts{'f'} =~ m/^xls$/i && $opts{'i'} !~ m/\.xls$/i);
+  pod2usage(-message => "\nERROR: Input does not have .xlsx extension.", -verbose => 0) if($opts{'f'} =~ m/^xlsx$/i && $opts{'i'} !~ m/\.xlsx$/i);
+  pod2usage(-message => "\nERROR: Output does not have .xls extension.", -verbose => 0) if($opts{'f'} =~ m/^xls$/i && $opts{'o'} !~ m/\.xls$/i);
+  pod2usage(-message => "\nERROR: Output does not have .xlsx extension.", -verbose => 0) if($opts{'f'} =~ m/^xlsx$/i && $opts{'o'} !~ m/\.xlsx$/i);
+  pod2usage(-message => "\nERROR: Input file is the same as output file.", -verbose => 0) if($opts{'i'} eq $opts{'o'});
   return \%opts;
 }
 
