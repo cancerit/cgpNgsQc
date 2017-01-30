@@ -54,7 +54,7 @@ WriteMakefile(
                      'JSON' => 0.00,
                      'JSON::XS' => 0.00,
                      'Data::UUID' => 0.00,
-                     'Digest::MD5' => 0.00,
+                     'Digest::file' => 0.00,
                      'Spreadsheet::ParseExcel' => 0.00,
                      'Spreadsheet::ParseXLSX' => 0.00,
                      'Spreadsheet::Read' => 0.00,
