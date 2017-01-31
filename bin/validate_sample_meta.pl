@@ -56,7 +56,7 @@ if($obj->{validate_status}) {
 exit;
 
 sub setup_options {
-  my %opts = ('a' => 0,
+  my %opts = (
             'f' => '',
             );
   GetOptions(
@@ -65,7 +65,6 @@ sub setup_options {
           'i|in=s' => \$opts{'i'},
           'o|out=s' => \$opts{'o'},
           'f|format:s' => \$opts{'f'},
-          'a|check-all' => \$opts{'a'},
           'v|version' => \$opts{'v'},
           ) or pod2usage(2);
 
@@ -102,7 +101,6 @@ validate_smaple_meta.pl [options]
     -in          -i    Input file. First column must be DONOR_ID.
     -out         -o    Output file (It'll be in the format as specified with '-format'. Extension name will be added when missing).
     -format      -f    Input file format (xlsx, xls or tsv. Optional, default to tsv).
-    -check-all   -a    Optional, check all reads in a bam instead of the first million reads. Use when some of RG IDs were not found in the first million reads.
 
   Other:
     -help        -h   Brief help message.
@@ -124,10 +122,6 @@ Output file name. It'll be in the format as specified with '-format'. Appropriat
 =item B<-format>
 
 Input file format [tsv|xlsx|xls]. Default to 'tsv'.
-
-=item B<-check-all>
-
-Check all reads in a bam to validate read groups. Optional, use when reads of a read group are NOT in the first million reads.
 
 =item B<-help>
 
