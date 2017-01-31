@@ -79,7 +79,7 @@ const my %FAIL_CODES => (
   '100' => 'SM not matching',                   # In one of the RG lines, SM value does not match to the Sample_ID in the excel file;
   '110' => 'read has no RG ID',                 # One or more reads have no RG ID.
   '120' => 'read has invalid RG ID',            # One or more reads have RG ID not defined in the header.
-  '130' => 'not all RG found, use --check-all', # Not all RG IDs were found in the first million reads, please use --check-all to check all reads in the bam.
+  # '130' => 'not all RG found, use --check-all', # Not all RG IDs were found in the first million reads, please use --check-all to check all reads in the bam.
   '140' => 'checked all, not all RG found',     # Checked all reads in the bam not all RG IDs were found.
 );
 
@@ -255,7 +255,7 @@ sub validate_samples {
     push @out, "$header_line\t$HEADER_BAM_STATE";
     for my $i(0..$#sample_ids) {
       warn "#--- processing sample: $sample_ids[$i]\n";
-      my $bam_state = validate_bam($sample_ids[$i], $is_normals[$i], $bam_files[$i], $opts->{'a'}, $opts->{'genome_build'}, $opts->{'count_base_number'});
+      my $bam_state = validate_bam($sample_ids[$i], $is_normals[$i], $bam_files[$i], $opts->{'genome_build'}, $opts->{'count_base_number'});
       push @bam_states, $bam_state;
       push @out, "$lines[$i]\t$bam_state";
       warn "done! ---#\n";
@@ -332,7 +332,7 @@ sub get_uuid {
 }
 
 sub validate_bam {
-  my ($sample_ID, $is_normals, $align_file, $check_all, $genome_build, $count_base_number) = @_; # $count_base_number is for testing the script
+  my ($sample_ID, $is_normals, $align_file, $genome_build, $count_base_number) = @_; # $count_base_number is for testing the script
   my @bam_state;
 
   if ($is_normals !~ $VALID_IS_NORMALS) {
@@ -391,8 +391,6 @@ sub validate_bam {
         $reported_error{$FAIL_CODES{'100'}} = 1;
         push @bam_state, $FAIL_CODES{'100'};
       }
-
-
     }
   } else {
     warn "no RG lines!\n";
@@ -537,46 +535,47 @@ sub validate_bam {
         my $end = time;
         my $elapsed = $end - $start;
         $start = $end;
-        warn "$processed_x_mill million ($processed_x) reads processed [time elapsed: ${elapsed}s].\n";
-
-        my @not_found;
-        for my $rg_header (keys %{$headers{'RG'}}) {
-          if ($headers{'RG'}{$rg_header} == 0) {
-            push @not_found, $rg_header;
-          }
-        }
-
-        if (scalar @not_found > 0) {
-          if ($check_all == 1) {
-            warn "checked $processed_x_mill million ($processed_x) reads, reads with RG:".join(' ', @not_found)." not found, continue to the next million!\n";
-          } else {
-            warn "checked 1st million ($processed_x) reads, reads with RG:".join(', ', @not_found)." not found, use '--check-all'!\n";
-            push @bam_state, $FAIL_CODES{'130'};
-            last;
-          }
-        } else {
-          if ($check_all != 1) {
-            warn "processed $processed_x reads in total, found all RG IDs in these reads.\n";
-          }
-          last;
-        }
+        warn "$processed_x reads processed [time elapsed: ${elapsed}s].\n";
+        last;
       }
     }
 
-    if ($check_all == 1) { # when check_all specified and last read is not on a million position.
-      my @not_found;
-      for my $rg_header (keys %{$headers{'RG'}}) {
-        if ($headers{'RG'}{$rg_header} == 0) {
-          push @not_found, $rg_header;
+
+    my @not_found;
+    for my $rg_id (keys %{$headers{'RG'}}) {
+      if ($headers{'RG'}{$rg_id} == 0) {
+        push @not_found, $rg_id;
+      }
+    }
+
+    if (scalar @not_found > 0) {
+      warn "checked $count_base_number reads, reads with RG:".join(', ', @not_found)." not found, checking read groups of all reads, will take upto a few hours, depending on the vloume of reads!\n";
+      my $out = qx@samtools view -F 80 '$align_file' | cut -f 12- | perl -lne 'print \$1 if /^.*RG\:Z\:([^\t]+)/' | awk '!seen[\$0]++'@;
+      my %all_RG_IDs_from_reads = map {$_ => 0} split("\n", $out);
+      for my $found_id (keys %all_RG_IDs_from_reads) {
+        if (! exists $headers{'RG'}{$found_id}) {
+          if (! exists $reported_error{$FAIL_CODES{'120'}}) {
+            warn "found a read with a RG tag not in header.\n";
+            $reported_error{$FAIL_CODES{'120'}} = 1;
+            push @bam_state, $FAIL_CODES{'120'};
+          }
         }
       }
-
-      if (scalar @not_found > 0) {
-        warn "checked all reads ($processed_x in total), reads with RG:".join(' ', @not_found)." not found!\n";
-        push @bam_state, $FAIL_CODES{'140'};
-      } else {
-        warn "processed $processed_x reads in total, found all RG IDs in these reads.\n";
+      for my $header_id (keys %{$headers{'RG'}}) {
+        if (! exists $all_RG_IDs_from_reads{$header_id}) {
+          warn "$header_id is not in the reads.\n";
+          warn "checked all reads, reads with RG:$header_id not found!\n";
+          if (! exists $reported_error{$FAIL_CODES{'140'}}) {
+            $reported_error{$FAIL_CODES{'140'}} = 1;
+            push @bam_state, $FAIL_CODES{'140'};
+          }
+        }
       }
+      if (! exists $reported_error{$FAIL_CODES{'140'}}) {
+        warn "processed all reads, found all RG IDs.\n";
+      }
+    } else {
+      warn "processed $count_base_number reads in total, found all RG IDs in these reads.\n";
     }
 
   } else {
