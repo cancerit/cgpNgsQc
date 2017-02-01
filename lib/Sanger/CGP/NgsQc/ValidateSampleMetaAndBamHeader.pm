@@ -550,8 +550,17 @@ sub validate_bam {
 
     if (scalar @not_found > 0) {
       warn "checked $count_base_number reads, reads with RG:".join(', ', @not_found)." not found, checking read groups of all reads, will take upto a few hours, depending on the vloume of reads!\n";
-      my $out = qx@samtools view -F 80 '$align_file' | cut -f 12- | perl -lne 'print \$1 if /^.*RG\:Z\:([^\t]+)/' | awk '!seen[\$0]++'@;
-      my %all_RG_IDs_from_reads = map {$_ => 0} split("\n", $out);
+      my $cmd = sprintf q@samtools view -F 80 '%s' | cut -f 12-@, $align_file;
+      my %all_RG_IDs_from_reads;
+      my ($pid, $process);
+      $pid = open $process, q{-|}, $cmd;
+      while (my $tmp = <$process>) {
+        chomp $tmp;
+        my ($rgid) = $tmp =~ m/RG\:Z\:([^\t]+)/;
+        $all_RG_IDs_from_reads{$rgid} = 1 unless ( exists $all_RG_IDs_from_reads{$rgid} );
+      }
+      close $process;
+
       for my $found_id (keys %all_RG_IDs_from_reads) {
         if (! exists $headers{'RG'}{$found_id}) {
           if (! exists $reported_error{$FAIL_CODES{'120'}}) {
@@ -667,8 +676,12 @@ sub bam_has_reads_more_than_threshold {
 
   my $end = time;
   my $elapsed = $end - $start;
-  warn "counted $processed_x reads [time elapsed: ${elapsed}s].\n";
-    return $enough, $processed_x;
+  if ($enough) {
+    warn "bam has more than $threshold reads [time elapsed: ${elapsed}s].\n";
+  } else {
+    warn "bam has only $processed_x reads, which is fewer than required ($threshold). [time elapsed: ${elapsed}s].\n";
+  }
+  return $enough, $processed_x;
 }
 
 sub write_results {
