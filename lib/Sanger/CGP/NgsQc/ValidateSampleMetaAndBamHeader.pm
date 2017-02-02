@@ -541,25 +541,44 @@ sub validate_bam {
     }
 
 
-    my @not_found;
+    my %not_found;
     for my $rg_id (keys %{$headers{'RG'}}) {
       if ($headers{'RG'}{$rg_id} == 0) {
-        push @not_found, $rg_id;
+        $not_found{$rg_id} = 0;
       }
     }
 
-    if (scalar @not_found > 0) {
-      warn "checked $count_base_number reads, reads with RG:".join(', ', @not_found)." not found, checking read groups of all reads, will take upto a few hours, depending on the vloume of reads!\n";
+    if (scalar (keys %not_found) > 0) {
+      warn "checked $count_base_number reads, reads with RG:".join(', ', keys %not_found)." not found, checking read groups of all reads, will take upto 2 hours, depending on the vloume of reads!\n";
       my $cmd = sprintf q@samtools view -F 80 '%s' | cut -f 12-@, $align_file;
       my %all_RG_IDs_from_reads;
       my ($pid, $process);
       $pid = open $process, q{-|}, $cmd;
+      my $count = 0;
       while (my $tmp = <$process>) {
         chomp $tmp;
-        my ($rgid) = $tmp =~ m/RG\:Z\:([^\t]+)/;
-        $all_RG_IDs_from_reads{$rgid} = 1 unless ( exists $all_RG_IDs_from_reads{$rgid} );
+        $count += 1;
+        my ($rgid) = $tmp =~ m/^.*RG\:Z\:([^\t]+)/;
+        if ( ! exists $all_RG_IDs_from_reads{$rgid} ) {
+          $all_RG_IDs_from_reads{$rgid} = 1;
+          if (exists $not_found{$rgid}) {
+            delete $not_found{$rgid};
+          }
+          if (scalar (keys %not_found) == 0) {
+            warn "parsed $count * 2 reads, found reads of RG ID: $rgid, found all RG IDs.\n";
+            last;
+          } else {
+            warn "parsed $count * 2 reads, found reads of RG ID: $rgid, still searching for ".join(', ', keys %not_found).".\n";
+          }
+        }
       }
-      close $process;
+      # close $process; # this close always return error with autodie, removing 'last' can get rid of the error as well
+      {
+        no autodie;
+        unless (close($process)) {
+          croak sprintf $FMT_ERR, "samtools - cut pipe close error: $!" if $!;
+        }
+      }
 
       for my $found_id (keys %all_RG_IDs_from_reads) {
         if (! exists $headers{'RG'}{$found_id}) {
@@ -579,9 +598,6 @@ sub validate_bam {
             push @bam_state, $FAIL_CODES{'140'};
           }
         }
-      }
-      if (! exists $reported_error{$FAIL_CODES{'140'}}) {
-        warn "processed all reads, found all RG IDs.\n";
       }
     } else {
       warn "processed $count_base_number reads in total, found all RG IDs in these reads.\n";
