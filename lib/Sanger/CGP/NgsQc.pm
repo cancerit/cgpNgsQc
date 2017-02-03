@@ -1,7 +1,7 @@
 package Sanger::CGP::NgsQc;
 
 ########## LICENCE ##########
-# Copyright (c) 2014-2016 Genome Research Ltd.
+# Copyright (c) 2014-2017 Genome Research Ltd.
 #
 # Author: Keiran Raine <cgpit@sanger.ac.uk>
 #
@@ -36,7 +36,8 @@ use strict;
 use base 'Exporter';
 use Bio::DB::HTS;
 
-our $VERSION = '1.3.0';
+our $VERSION = '1.4.0';
+
 our @EXPORT = qw($VERSION);
 
 sub bam_sample_name {
