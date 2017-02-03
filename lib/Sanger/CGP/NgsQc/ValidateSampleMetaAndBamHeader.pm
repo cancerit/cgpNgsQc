@@ -1,5 +1,36 @@
 package Sanger::CGP::NgsQc::ValidateSampleMetaAndBamHeader;
 
+########## LICENCE ##########
+# Copyright (c) 2014-2017 Genome Research Ltd.
+#
+# Author: Yaobo Xu <cgpit@sanger.ac.uk>
+#
+# This file is part of cgpNgsQc.
+#
+# cgpNgsQc is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation; either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+# details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+# 1. The usage of a range of years within a copyright statement contained within
+# this distribution should be interpreted as being equivalent to a list of years
+# including the first and last year specified and all consecutive years between
+# them. For example, a copyright statement that reads ‘Copyright (c) 2005, 2007-
+# 2009, 2011-2012’ should be interpreted as being identical to a statement that
+# reads ‘Copyright (c) 2005, 2007, 2008, 2009, 2011, 2012’ and a copyright
+# statement that reads ‘Copyright (c) 2005-2012’ should be interpreted as being
+# identical to a statement that reads ‘Copyright (c) 2005, 2006, 2007, 2008,
+# 2009, 2010, 2011, 2012’."
+########## LICENCE ##########
+
 use strict;
 use warnings FATAL => 'all';
 use autodie qw(:all);
@@ -7,6 +38,8 @@ use Pod::Usage qw(pod2usage);
 use Const::Fast qw(const);
 use Carp;
 use Cwd;
+
+use Sanger::CGP::NgsQc;
 
 use File::ShareDir qw(dist_dir);
 use List::Util qw(first);
@@ -17,7 +50,7 @@ use Excel::Writer::XLSX; # to write xlsx output
 use Bio::DB::HTS;
 use File::Spec;
 use Data::UUID;
-use Digest::MD5 qw(md5_hex);
+use Digest::file qw(digest_file_hex);
 
 
 const my $HEADER_DONOR_ID => 'Donor_ID';
@@ -46,11 +79,12 @@ const my %FAIL_CODES => (
   '100' => 'SM not matching',                   # In one of the RG lines, SM value does not match to the Sample_ID in the excel file;
   '110' => 'read has no RG ID',                 # One or more reads have no RG ID.
   '120' => 'read has invalid RG ID',            # One or more reads have RG ID not defined in the header.
-  '130' => 'not all RG found, use --check-all', # Not all RG IDs were found in the first million reads, please use --check-all to check all reads in the bam.
+  # '130' => 'not all RG found, use --check-all', # Not all RG IDs were found in the first million reads, please use --check-all to check all reads in the bam.
   '140' => 'checked all, not all RG found',     # Checked all reads in the bam not all RG IDs were found.
 );
 
-const my @VALID_PLATFORM => qw(CAPILLARY ILLUMINA LS454 SOLID HELICOS IONTORRENT ONT PACBIO);
+#const my @VALID_PLATFORM => qw(CAPILLARY ILLUMINA LS454 SOLID HELICOS IONTORRENT ONT PACBIO);
+const my @VALID_PLATFORM => qw(ILLUMINA); # can only process illinina data
 const my $VALID_IS_NORMALS => qr/^yes$|^y$|^no$|^n$/i;
 
 const my $FMT_ERR => qq{--------\nError: %s\n--------\n};
@@ -68,12 +102,13 @@ sub new {
 sub _init {
   my ($self, $options) = @_;
   croak sprintf $FMT_ERR, "can not find input file $options->{'i'}. $!" unless (-e $options->{'i'});
-  croak sprintf $FMT_ERR, "output file $options->{'o'} is not writable. $!" unless (-w $options->{'o'});
+  open my $OUT, ">", $options->{'o'} or croak sprintf $FMT_ERR, "can not open the output: $options->{'o'} to write. $!";
+  close $OUT;
   $options->{'mod'} = 1; # not in testing mode
   $options->{'count_base_number'} = 1_000_000;
   $options->{'genome_build'} = 'GRCh37d5' unless (exists $options->{'genome_build'}); #TODO may need a dict for this option
-  my $valid_status = validate_samples($options);
-  $self->{'valid_status'} = $valid_status;
+  my $validate_status = validate_samples($options);
+  $self->{'validate_status'} = $validate_status;
   return 1;
 }
 
@@ -220,7 +255,7 @@ sub validate_samples {
     push @out, "$header_line\t$HEADER_BAM_STATE";
     for my $i(0..$#sample_ids) {
       warn "#--- processing sample: $sample_ids[$i]\n";
-      my $bam_state = validate_bam($sample_ids[$i], $is_normals[$i], $bam_files[$i], $opts->{'a'}, $opts->{'genome_build'}, $opts->{'count_base_number'});
+      my $bam_state = validate_bam($sample_ids[$i], $is_normals[$i], $bam_files[$i], $opts->{'genome_build'}, $opts->{'count_base_number'});
       push @bam_states, $bam_state;
       push @out, "$lines[$i]\t$bam_state";
       warn "done! ---#\n";
@@ -282,8 +317,7 @@ sub validate_samples {
 
 sub get_md5sum {
   my $file = shift;
-  open my $FILE, "<", $file;
-  my $cksum = md5_hex(<$FILE>);
+  my $cksum = digest_file_hex($file, "MD5");
   if ($cksum) {
     return $cksum;
   } else {
@@ -298,7 +332,7 @@ sub get_uuid {
 }
 
 sub validate_bam {
-  my ($sample_ID, $is_normals, $align_file, $check_all, $genome_build, $count_base_number) = @_; # $count_base_number is for testing the script
+  my ($sample_ID, $is_normals, $align_file, $genome_build, $count_base_number) = @_; # $count_base_number is for testing the script
   my @bam_state;
 
   if ($is_normals !~ $VALID_IS_NORMALS) {
@@ -317,41 +351,45 @@ sub validate_bam {
   if (exists $header_sets->{RG}) {
     my %reported_error;
     for my $rg_line (@{$header_sets->{RG}}) {
-      if (exists $rg_line->{ID}) {
-        if (! exists $headers{'RG'}{$rg_line->{ID}} ) {
+
+      if (! exists $rg_line->{ID} && ! exists $reported_error{$FAIL_CODES{'040'}}) {
+        warn "RG line has no ID.\n";
+        $reported_error{$FAIL_CODES{'040'}} = 1;
+        push @bam_state, $FAIL_CODES{'040'};
+      } elsif (exists $rg_line->{ID}) {
+        if (exists $headers{'RG'}{$rg_line->{ID}} && ! exists $reported_error{$FAIL_CODES{'031'}}) {
+          warn "duplicated RG ID:$rg_line->{ID} in header.\n";
+          $reported_error{$FAIL_CODES{'031'}} = 1;
+          push @bam_state, $FAIL_CODES{'031'};
+        } elsif (! exists $headers{'RG'}{$rg_line->{ID}}) {
           $headers{'RG'}{$rg_line->{ID}} = 0; # handle duplicates also = 1 when rg found in a read.
-          if (! exists $rg_line->{PL} && ! exists $reported_error{$FAIL_CODES{'070'}}) {
-            warn "no PL for RG $rg_line->{ID}.\n";
-            $reported_error{$FAIL_CODES{'070'}} = 1;
-            push @bam_state, $FAIL_CODES{'070'};
-          } else {
-            if (! defined(first { $_ eq $rg_line->{PL} } @VALID_PLATFORM) && ! exists $reported_error{$FAIL_CODES{'080'}}) {
-              warn "bad PL for RG $rg_line->{ID}.\n";
-              $reported_error{$FAIL_CODES{'080'}} = 1;
-              push @bam_state, $FAIL_CODES{'080'};
-            }
-          }
-          if (! exists $rg_line->{LB} && ! exists $reported_error{$FAIL_CODES{'060'}}) {
-            warn "no LB for RG $rg_line->{ID}.\n";
-            $reported_error{$FAIL_CODES{'060'}} = 1;
-            push @bam_state, $FAIL_CODES{'060'};
-          }
-          if (! exists $rg_line->{SM} && ! exists $reported_error{$FAIL_CODES{'090'}}) {
-            warn "no SM for RG $rg_line->{ID}.\n";
-            $reported_error{$FAIL_CODES{'090'}} = 1;
-            push @bam_state, $FAIL_CODES{'090'};
-          } elsif ($rg_line->{SM} ne $sample_ID && ! exists $reported_error{$FAIL_CODES{'100'}}) {
-            warn "bad SM for RG $rg_line->{RG}.\n";
-            $reported_error{$FAIL_CODES{'100'}} = 1;
-            push @bam_state, $FAIL_CODES{'100'};
-          }
-        } else {
-          if (! exists $reported_error{$FAIL_CODES{'031'}}) {
-            warn "duplicated RG ID in header.\n";
-            $reported_error{$FAIL_CODES{'031'}} = 1;
-            push @bam_state, $FAIL_CODES{'031'};
-          }
         }
+      }
+
+      if (! exists $rg_line->{PL} && ! exists $reported_error{$FAIL_CODES{'070'}}) {
+        warn "RG line has no PL.\n";
+        $reported_error{$FAIL_CODES{'070'}} = 1;
+        push @bam_state, $FAIL_CODES{'070'};
+      } elsif (! defined(first { $_ eq $rg_line->{PL} } @VALID_PLATFORM) && ! exists $reported_error{$FAIL_CODES{'080'}}) {
+        warn "RG line has invalid PL.\n";
+        $reported_error{$FAIL_CODES{'080'}} = 1;
+        push @bam_state, $FAIL_CODES{'080'};
+      }
+
+      if (! exists $rg_line->{LB} && ! exists $reported_error{$FAIL_CODES{'060'}}) {
+        warn "RG line has no LB\n";
+        $reported_error{$FAIL_CODES{'060'}} = 1;
+        push @bam_state, $FAIL_CODES{'060'};
+      }
+
+      if (! exists $rg_line->{SM} && ! exists $reported_error{$FAIL_CODES{'090'}}) {
+        warn "RG line has no SM.\n";
+        $reported_error{$FAIL_CODES{'090'}} = 1;
+        push @bam_state, $FAIL_CODES{'090'};
+      } elsif ($rg_line->{SM} ne $sample_ID && ! exists $reported_error{$FAIL_CODES{'100'}}) {
+        warn "RG line has invalid SM.\n";
+        $reported_error{$FAIL_CODES{'100'}} = 1;
+        push @bam_state, $FAIL_CODES{'100'};
       }
     }
   } else {
@@ -497,50 +535,76 @@ sub validate_bam {
         my $end = time;
         my $elapsed = $end - $start;
         $start = $end;
-        warn "$processed_x_mill million ($processed_x) reads processed [time elapsed: ${elapsed}s].\n";
-
-        my @not_found;
-        for my $rg_header (keys %{$headers{'RG'}}) {
-          if ($headers{'RG'}{$rg_header} == 0) {
-            push @not_found, $rg_header;
-          }
-        }
-
-        if (scalar @not_found > 0) {
-          if ($check_all == 1) {
-            warn "checked $processed_x_mill million ($processed_x) reads, reads with RG:".join ' ', @not_found." not found, continue to the next million!\n";
-          } else {
-            warn "checked 1st million ($processed_x) reads, reads with RG:".join ', ', @not_found." not found, use '--check-all'!\n";
-            push @bam_state, $FAIL_CODES{'130'};
-            last;
-          }
-        } else {
-          if ($check_all != 1) {
-            warn "processed $processed_x reads in total, found all RG IDs in these reads.\n";
-          }
-          last;
-        }
+        warn "$processed_x reads processed [time elapsed: ${elapsed}s].\n";
+        last;
       }
     }
 
-    if ($check_all == 1) { # when check_all specified and last read is not on a million position.
-      my @not_found;
-      for my $rg_header (keys %{$headers{'RG'}}) {
-        if ($headers{'RG'}{$rg_header} == 0) {
-          push @not_found, $rg_header;
+
+    my %not_found;
+    for my $rg_id (keys %{$headers{'RG'}}) {
+      if ($headers{'RG'}{$rg_id} == 0) {
+        $not_found{$rg_id} = 0;
+      }
+    }
+
+    if (scalar (keys %not_found) > 0) {
+      warn "checked $count_base_number reads, reads with RG:".join(', ', keys %not_found)." not found, checking read groups of all reads, will take upto 2 hours, depending on the vloume of reads!\n";
+      my $cmd = sprintf q@samtools view -F 80 '%s' | cut -f 12-@, $align_file;
+      my %all_RG_IDs_from_reads;
+      my ($pid, $process);
+      $pid = open $process, q{-|}, $cmd;
+      my $count = 0;
+      while (my $tmp = <$process>) {
+        chomp $tmp;
+        $count += 1;
+        my ($rgid) = $tmp =~ m/^.*RG\:Z\:([^\t]+)/;
+        if ( ! exists $all_RG_IDs_from_reads{$rgid} ) {
+          $all_RG_IDs_from_reads{$rgid} = 1;
+          if (exists $not_found{$rgid}) {
+            delete $not_found{$rgid};
+          }
+          if (scalar (keys %not_found) == 0) {
+            warn "parsed $count * 2 reads, found reads of RG ID: $rgid, found all RG IDs.\n";
+            last;
+          } else {
+            warn "parsed $count * 2 reads, found reads of RG ID: $rgid, still searching for ".join(', ', keys %not_found).".\n";
+          }
+        }
+      }
+      # close $process; # this close always return error with autodie, removing 'last' can get rid of the error as well
+      {
+        no autodie;
+        unless (close($process)) {
+          croak sprintf $FMT_ERR, "samtools - cut pipe close error: $!" if $!;
         }
       }
 
-      if (scalar @not_found > 0) {
-        warn "checked all reads ($processed_x in total), reads with RG:".join ' ', @not_found." not found!\n";
-        push @bam_state, $FAIL_CODES{'140'};
-      } else {
-        warn "processed $processed_x reads in total, found all RG IDs in these reads.\n";
+      for my $found_id (keys %all_RG_IDs_from_reads) {
+        if (! exists $headers{'RG'}{$found_id}) {
+          if (! exists $reported_error{$FAIL_CODES{'120'}}) {
+            warn "found a read with a RG tag not in header.\n";
+            $reported_error{$FAIL_CODES{'120'}} = 1;
+            push @bam_state, $FAIL_CODES{'120'};
+          }
+        }
       }
+      for my $header_id (keys %{$headers{'RG'}}) {
+        if (! exists $all_RG_IDs_from_reads{$header_id}) {
+          warn "$header_id is not in the reads.\n";
+          warn "checked all reads, reads with RG:$header_id not found!\n";
+          if (! exists $reported_error{$FAIL_CODES{'140'}}) {
+            $reported_error{$FAIL_CODES{'140'}} = 1;
+            push @bam_state, $FAIL_CODES{'140'};
+          }
+        }
+      }
+    } else {
+      warn "processed $count_base_number reads in total, found all RG IDs in these reads.\n";
     }
 
   } else {
-    warn "this is an invalid bam! Errors are: ".join '; ', @bam_state.".\n";
+    warn "this is an invalid bam! Errors are: ".join('; ', @bam_state).".\n";
   }
 
   if (scalar @bam_state == 0 && $match_pp_remapped_sq_pg == 1) { # if reads group of reads do not check out
@@ -550,7 +614,7 @@ sub validate_bam {
     warn "Conclusion: this is a raw_bam!\n";
     return "raw";
   } else {
-    warn "Conclusion: this is an invalid bam! Errors are: ".join '; ', @bam_state.".\n";
+    warn "Conclusion: this is an invalid bam! Errors are: ".join('; ', @bam_state).".\n";
     return 'failed:'.join '; ', @bam_state;
   }
 }
@@ -628,12 +692,16 @@ sub bam_has_reads_more_than_threshold {
 
   my $end = time;
   my $elapsed = $end - $start;
-  warn "counted $processed_x reads [time elapsed: ${elapsed}s].\n";
-    return $enough, $processed_x;
+  if ($enough) {
+    warn "bam has more than $threshold reads [time elapsed: ${elapsed}s].\n";
+  } else {
+    warn "bam has only $processed_x reads, which is fewer than required ($threshold). [time elapsed: ${elapsed}s].\n";
+  }
+  return $enough, $processed_x;
 }
 
 sub write_results {
-  my ($out_array, $output, $format, $valid_status) = @_;
+  my ($out_array, $output, $format, $validate_status) = @_;
   if ($format eq 'xlsx') {
     # rename output, if it does not ends with .xlsx
     my $workbook = Excel::Writer::XLSX->new($output);
@@ -659,7 +727,7 @@ sub write_results {
   }
 
   # write an extra output file on sucessful validation if input format is xlsx or xls
-  if ($valid_status && $format =~ m/^xls$|^xlsx$/i) {
+  if ($validate_status && $format =~ m/^xls$|^xlsx$/i) {
     $output =~ s/\.xls$|\.xlsx$/\.tsv/i;
     write_to_file($out_array, $output);
   }
