@@ -1,0 +1,2 @@
+#Donor_ID	Tissue_ID	is_normal	is_normal_for_donor	Sample_ID	relative_file_path
+  fake donor 1	fake tissue	Y	Y	test	test-meta.xlsx
