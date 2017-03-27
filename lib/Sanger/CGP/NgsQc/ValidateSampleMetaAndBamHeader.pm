@@ -55,7 +55,7 @@ use Digest::file qw(digest_file_hex);
 
 const my $HEADER_DONOR_ID => 'Donor_ID';
 const my $HEADER_TISSUE_ID => 'Tissue_ID';
-const my $HEADER_IS_NORMAL => 'is_normal'; # characters before '(' are used to match column names
+const my $HEADER_IS_NORMAL => 'is_normal';
 const my $HEADER_IS_NORMAL_FOR_DONOR => 'is_normal_for_donor';
 const my $HEADER_SAMPLE_ID => 'Sample_ID';
 const my $HEADER_BAM => 'relative_file_path';
@@ -278,7 +278,7 @@ sub validate_samples {
     @bam_states = @$new_bam_states_ref;
     push @out, "$header_line\t$HEADER_BAM_STATE";
     for my $i(0..$#sample_ids) {
-      if ($bam_states[$i] eq 'pp_remapped') { # if read group checks are ok
+      if ($bam_states[$i] eq 'pp-remapped') { # if read group checks are ok
         warn "ovarall validate states for $sample_ids[$i]: pp_remapped_bam!\n";
       } elsif ($bam_states[$i] eq 'raw') {
         warn "ovarall validate states for $sample_ids[$i]: raw_bam!\n";
@@ -680,9 +680,7 @@ sub sq_hash_from_bam_header {
   return \%valid_sq_hash;
 }
 
-# TODO working here, test it!
 sub check_donor_states {
-  # @bam_states = check_donor_states(\@donor_ids, \@is_normals, \@is_normal_for_donors, \@bam_states)
   warn "\n#--- check donors\' normal/tumour/nominated_normal.. \n";
   my ($donor_ids_ref, $is_normals_ref, $is_normal_for_donors_ref, $bam_states_ref) = @_;
   my %donors;
@@ -707,21 +705,26 @@ sub check_donor_states {
     my @bam_state;
     if (
     $donors{${$donor_ids_ref}[$i]}{'nomal'} == 0) {
+      warn "found no normal for donor: ${$donor_ids_ref}[$i]\n";
       push @bam_state, $FAIL_CODES{'015'};
     }
     if (
     $donors{${$donor_ids_ref}[$i]}{'tumour'} == 0) {
+      warn "found no tumour for donor: ${$donor_ids_ref}[$i]\n";
       push @bam_state, $FAIL_CODES{'016'};
     }
     if (
     $donors{${$donor_ids_ref}[$i]}{'nominated'} == 0) {
+      warn "found no nominated_normal for donor: ${$donor_ids_ref}[$i]\n";
       push @bam_state, $FAIL_CODES{'012'};
     }
     if (
     $donors{${$donor_ids_ref}[$i]}{'nominated'} > 1) {
+      warn "found more than 1 nominated_normal for donor: ${$donor_ids_ref}[$i]\n";
       push @bam_state, $FAIL_CODES{'014'};
     }
     if(${$is_normals_ref}[$i] !~ $VALID_IS_NORMALS_IS && ${$is_normal_for_donors_ref}[$i] =~ $VALID_IS_NORMAL_FOR_DONORS_IS) {
+      warn "nominated_normal sample is not normal for donor: ${$donor_ids_ref}[$i]\n";
       push @bam_state, $FAIL_CODES{'013'};
     }
     if (scalar @bam_state > 0) {
