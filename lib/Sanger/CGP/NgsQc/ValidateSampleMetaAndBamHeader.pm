@@ -55,7 +55,8 @@ use Digest::file qw(digest_file_hex);
 
 const my $HEADER_DONOR_ID => 'Donor_ID';
 const my $HEADER_TISSUE_ID => 'Tissue_ID';
-const my $HEADER_IS_NORMAL => 'is_normal (Yes/No, Y/N)'; # characters before '(' are used to match column names
+const my $HEADER_IS_NORMAL => 'is_normal'; # characters before '(' are used to match column names
+const my $HEADER_IS_NORMAL_FOR_DONOR => 'is_normal_for_donor';
 const my $HEADER_SAMPLE_ID => 'Sample_ID';
 const my $HEADER_BAM => 'relative_file_path';
 const my $HEADER_DONOR_UUID => 'Donor_UUID';
@@ -65,28 +66,34 @@ const my $HEADER_BAM_MD5 => 'bam_md5sum';
 const my $HEADER_BAM_STATE => 'bam_state';
 
 const my %FAIL_CODES => (
-  '010' => 'invalid is_normal value',           # can not find the bam file;
-  '020' => 'bam is not found',                  # can not find the bam file;
-  '021' => 'bam has too few reads',             # can not find the bam file;
-  '030' => 'no RG line',                        # bam header has no RG line;
-  '031' => 'duplicated RG ID in header',        # bam header has duplicatd RG IDs;
-  '040' => 'no ID',                             # Each RG line has to have an unique ID (of other RG lines);
-  # const my $FAIL_CODE_050 => 'no CN',                             # Each RG line has to have an CN tag;
-  '060' => 'no LB',                             # Each RG line has to have an LB tag;
-  '070' => 'no PL',                             # Each RG line has to have an PL tag;
-  '080' => 'invalid PL',                        # Valid PL values are: CAPILLARY, LS454, ILLUMINA, SOLID, HELICOS, IONTORRENT, ONT, and PACBIO. Error will be give for other values.
-  '090' => 'no SM',                             # Each RG line has to have an SM tag.
-  '100' => 'SM not matching',                   # In one of the RG lines, SM value does not match to the Sample_ID in the excel file;
-  '110' => 'read has no RG ID',                 # One or more reads have no RG ID.
-  '120' => 'read has invalid RG ID',            # One or more reads have RG ID not defined in the header.
-  # '130' => 'not all RG found, use --check-all', # Not all RG IDs were found in the first million reads, please use --check-all to check all reads in the bam.
-  '140' => 'checked all, not all RG found',     # Checked all reads in the bam not all RG IDs were found.
+  '010' => 'invalid is_normal value',
+  '011' => 'invalid is_normal_for_donor value',
+  '012' => 'no nominated normal_for_donor',
+  '013' => 'nominated normal_for_donor is not normal',
+  '014' => 'multiple nominated normal_for_donor',
+  '015' => 'no normal sample for donor',
+  '016' => 'no tumour sample for donor',
+  '020' => 'bam is not found',                           # can not find the bam file;
+  '021' => 'bam has too few reads',                      # bam has read fewer than a threshold;
+  '030' => 'no RG line',                                 # bam header has no RG line;
+  '031' => 'duplicated RG ID in header',                 # bam header has duplicatd RG IDs;
+  '040' => 'no ID',                                      # Each RG line has to have an unique ID (of other RG lines);
+  '060' => 'no LB',                                      # Each RG line has to have an LB tag;
+  '070' => 'no PL',                                      # Each RG line has to have an PL tag;
+  '080' => 'invalid PL',                                 # Valid PL values are: CAPILLARY, LS454, ILLUMINA, SOLID, HELICOS, IONTORRENT, ONT, and PACBIO. Error will be give for other values.
+  '090' => 'no SM',                                      # Each RG line has to have an SM tag.
+  '100' => 'SM not matching',                            # In one of the RG lines, SM value does not match to the Sample_ID in the excel file;
+  '110' => 'read has no RG ID',                          # One or more reads have no RG ID.
+  '120' => 'read has invalid RG ID',                     # One or more reads have RG ID not defined in the header.
+  '140' => 'checked all, not all RG found',              # Checked all reads in the bam not all RG IDs were found.
 );
 
 #const my @VALID_PLATFORM => qw(CAPILLARY ILLUMINA LS454 SOLID HELICOS IONTORRENT ONT PACBIO);
 const my @VALID_PLATFORM => qw(ILLUMINA); # can only process illinina data
 const my $VALID_IS_NORMALS => qr/^yes$|^y$|^no$|^n$/i;
-
+const my $VALID_IS_NORMALS_IS => qr/^yes$|^y$/i;
+const my $VALID_IS_NORMAL_FOR_DONORS => qr/^yes$|^y$|^$/i;
+const my $VALID_IS_NORMAL_FOR_DONORS_IS => qr/^yes$|^y$/i;
 const my $FMT_ERR => qq{--------\nError: %s\n--------\n};
 
 1;
@@ -144,7 +151,7 @@ sub validate_samples {
 
   my @lines = @$in_array;
 
-  my ($donor_index, $tissue_index, $is_normal_index, $sample_index, $bam_index);
+  my ($donor_index, $tissue_index, $is_normal_index, $is_normal_for_donor_index, $sample_index, $bam_index);
   my @out;
 
   ### check input table headers
@@ -156,7 +163,6 @@ sub validate_samples {
     # assign column index
     my @colnames = split "\t", $header_line;
     my %header_checks;
-    my @temp = split " ", $HEADER_IS_NORMAL; my $header_is_normal_match = $temp[0];
     for my $i (0..$#colnames) {
       if ($colnames[$i] =~ m/$HEADER_DONOR_ID/i) {
         $donor_index = $i;
@@ -174,13 +180,21 @@ sub validate_samples {
         } else {
           croak sprintf $FMT_ERR, "Duplicated header $HEADER_TISSUE_ID found!";
         }
-      } elsif ($colnames[$i] =~ m/$header_is_normal_match/i) {
+      } elsif ($colnames[$i] =~ m/^$HEADER_IS_NORMAL$/i) {
         $is_normal_index = $i;
         warn "Column $colnames[$i]:$is_normal_index -> $HEADER_IS_NORMAL\n";
         if (! exists $header_checks{$HEADER_IS_NORMAL}) {
           $header_checks{$HEADER_IS_NORMAL} = 1;
         } else {
           croak sprintf $FMT_ERR, "Duplicated header $HEADER_IS_NORMAL found!";
+        }
+      } elsif ($colnames[$i] =~ m/^$HEADER_IS_NORMAL_FOR_DONOR$/i) {
+        $is_normal_for_donor_index = $i;
+        warn "Column $colnames[$i]:$is_normal_for_donor_index -> $HEADER_IS_NORMAL_FOR_DONOR\n";
+        if (! exists $header_checks{$HEADER_IS_NORMAL_FOR_DONOR}) {
+          $header_checks{$HEADER_IS_NORMAL_FOR_DONOR} = 1;
+        } else {
+          croak sprintf $FMT_ERR, "Duplicated header $HEADER_IS_NORMAL_FOR_DONOR found!";
         }
       } elsif ($colnames[$i] =~ m/$HEADER_SAMPLE_ID/i) {
         $sample_index = $i;
@@ -204,17 +218,18 @@ sub validate_samples {
     if (!exists $header_checks{$HEADER_DONOR_ID}) {croak sprintf $FMT_ERR, "$HEADER_DONOR_ID column is missing!";};
     if (!exists $header_checks{$HEADER_TISSUE_ID}) {croak sprintf $FMT_ERR, "$HEADER_TISSUE_ID column is missing!";};
     if (!exists $header_checks{$HEADER_IS_NORMAL}) {croak sprintf $FMT_ERR, "$HEADER_IS_NORMAL column is missing!";};
+    if (!exists $header_checks{$HEADER_IS_NORMAL_FOR_DONOR}) {croak sprintf $FMT_ERR, "$HEADER_IS_NORMAL_FOR_DONOR column is missing!";};
     if (!exists $header_checks{$HEADER_SAMPLE_ID}) {croak sprintf $FMT_ERR, "$HEADER_SAMPLE_ID column is missing!";};
     if (!exists $header_checks{$HEADER_BAM}) {croak sprintf $FMT_ERR, "$HEADER_BAM column is missing!";};
 
   } else {
-    warn "Found no header, assume following:\n  column 1: $HEADER_DONOR_ID\n  column 2: $HEADER_TISSUE_ID\n  column 3: $HEADER_IS_NORMAL\n  column 4: $HEADER_SAMPLE_ID\n  column 5: $HEADER_BAM\n";
+    warn "Found no header, assume following:\n  column 1: $HEADER_DONOR_ID\n  column 2: $HEADER_TISSUE_ID\n  column 3: $HEADER_IS_NORMAL\n  column 4: $HEADER_IS_NORMAL_FOR_DONOR\n  column 5: $HEADER_SAMPLE_ID\n  column 6: $HEADER_BAM\n";
     my @temp = split "\t", $lines[0];
-    if (scalar @temp >= 5) {
-      ($donor_index, $tissue_index, $is_normal_index, $sample_index, $bam_index) = (0, 1, 2, 3, 4);
-      $header_line = join("\t", ($HEADER_DONOR_ID, $HEADER_TISSUE_ID, $HEADER_IS_NORMAL, $HEADER_SAMPLE_ID, $HEADER_BAM))."\t" x (scalar @temp - 5);
+    if (scalar @temp >= 6) {
+      ($donor_index, $tissue_index, $is_normal_index, $is_normal_for_donor_index, $sample_index, $bam_index) = (0, 1, 2, 3, 4, 5);
+      $header_line = join("\t", ($HEADER_DONOR_ID, $HEADER_TISSUE_ID, $HEADER_IS_NORMAL, $HEADER_IS_NORMAL_FOR_DONOR, $HEADER_SAMPLE_ID, $HEADER_BAM))."\t" x (scalar @temp - 6);
     } else {
-      croak sprintf $FMT_ERR, "Require 5 columns, ".scalar @temp." found!";
+      croak sprintf $FMT_ERR, "Require 6 columns, ".scalar @temp." found!";
     }
   }
   warn "--------\n\n";
@@ -222,7 +237,7 @@ sub validate_samples {
   my $ncol = scalar split("\t", $header_line);
   my ($in_volume,$in_directories,$in_file_name) = File::Spec->splitpath($opts->{'i'});
   ### store IDs and check if there's duplicated sample_id or relative_file_path
-  my (%sample_id_checks, %bam_path_checks, @donor_ids, @tissue_ids, @is_normals, @sample_ids, @bam_files);
+  my (%sample_id_checks, %bam_path_checks, @donor_ids, @tissue_ids, @is_normals, @is_normal_for_donors, @sample_ids, @bam_files);
   for my $i(0..$#lines) {
     my @temp = split "\t", $lines[$i];
     if (scalar @temp == $ncol) {
@@ -240,6 +255,7 @@ sub validate_samples {
         croak sprintf $FMT_ERR, "Duplicated $HEADER_BAM found: $bam!";
       }
       push @is_normals, $temp[$is_normal_index];
+      push @is_normal_for_donors, $temp[$is_normal_for_donor_index];
       push @donor_ids, $temp[$donor_index];
       push @tissue_ids, $temp[$tissue_index];
     } else {
@@ -251,14 +267,25 @@ sub validate_samples {
   my $traffic_light = 1; # traffic light for UUID generation and md5sum check
   my @bam_states;
   if (scalar @sample_ids == scalar @lines && scalar @sample_ids == scalar @bam_files && scalar @sample_ids == scalar @donor_ids
-    && scalar @sample_ids == scalar @tissue_ids && scalar @sample_ids == scalar @is_normals) {
-    push @out, "$header_line\t$HEADER_BAM_STATE";
+    && scalar @sample_ids == scalar @tissue_ids && scalar @sample_ids == scalar @is_normals && scalar @sample_ids == scalar @is_normal_for_donors) {
     for my $i(0..$#sample_ids) {
       warn "#--- processing sample: $sample_ids[$i]\n";
-      my $bam_state = validate_bam($sample_ids[$i], $is_normals[$i], $bam_files[$i], $opts->{'genome_build'}, $opts->{'count_base_number'});
+      my $bam_state = validate_bam($sample_ids[$i], $is_normals[$i], $is_normal_for_donors[$i], $bam_files[$i], $opts->{'genome_build'}, $opts->{'count_base_number'});
       push @bam_states, $bam_state;
-      push @out, "$lines[$i]\t$bam_state";
       warn "done! ---#\n";
+    }
+    my $new_bam_states_ref = check_donor_states(\@donor_ids, \@is_normals, \@is_normal_for_donors, \@bam_states, );
+    @bam_states = @$new_bam_states_ref;
+    push @out, "$header_line\t$HEADER_BAM_STATE";
+    for my $i(0..$#sample_ids) {
+      if ($bam_states[$i] eq 'pp_remapped') { # if read group checks are ok
+        warn "ovarall validate states for $sample_ids[$i]: pp_remapped_bam!\n";
+      } elsif ($bam_states[$i] eq 'raw') {
+        warn "ovarall validate states for $sample_ids[$i]: raw_bam!\n";
+      } else {
+        warn "ovarall validate states for $sample_ids[$i]: invalid bam! $bam_states[$i]\n";
+      }
+      push @out, "$lines[$i]\t$bam_states[$i]";
     }
   } else {
     confess sprintf $FMT_ERR, "script error 001: Different length of sample_ids and bams!"; # should never happen
@@ -328,15 +355,19 @@ sub get_md5sum {
 sub get_uuid {
   my $ug = Data::UUID->new;
   my $uuid = $ug->to_string($ug->create);
-  return $uuid;
+  return lc $uuid;
 }
 
 sub validate_bam {
-  my ($sample_ID, $is_normals, $align_file, $genome_build, $count_base_number) = @_; # $count_base_number is for testing the script
+  my ($sample_ID, $is_normal, $is_normal_for_donor, $align_file, $genome_build, $count_base_number) = @_; # $count_base_number is for testing the script
   my @bam_state;
 
-  if ($is_normals !~ $VALID_IS_NORMALS) {
+  if ($is_normal !~ $VALID_IS_NORMALS) {
     push @bam_state, $FAIL_CODES{'010'};
+  }
+
+  if ($is_normal_for_donor !~ $VALID_IS_NORMAL_FOR_DONORS) {
+    push @bam_state, $FAIL_CODES{'011'};
   }
 
   if (! -e $align_file) {
@@ -607,14 +638,14 @@ sub validate_bam {
     warn "this is an invalid bam! Errors are: ".join('; ', @bam_state).".\n";
   }
 
-  if (scalar @bam_state == 0 && $match_pp_remapped_sq_pg == 1) { # if reads group of reads do not check out
-    warn "Conclusion: this is a pp_remapped_bam!\n";
+  if (scalar @bam_state == 0 && $match_pp_remapped_sq_pg == 1) { # if read group checks are ok
+    warn "bam_state conclusion: this is a pp_remapped_bam!\n";
     return "pp-remapped";
   } elsif (scalar @bam_state == 0 && $match_pp_remapped_sq_pg == 0) {
-    warn "Conclusion: this is a raw_bam!\n";
+    warn "bam_state conclusion: this is a raw_bam!\n";
     return "raw";
   } else {
-    warn "Conclusion: this is an invalid bam! Errors are: ".join('; ', @bam_state).".\n";
+    warn "bam_state conclusion: this is an invalid bam! Errors are: ".join('; ', @bam_state).".\n";
     return 'failed:'.join '; ', @bam_state;
   }
 }
@@ -647,6 +678,61 @@ sub sq_hash_from_bam_header {
     }
   }
   return \%valid_sq_hash;
+}
+
+# TODO working here, test it!
+sub check_donor_states {
+  # @bam_states = check_donor_states(\@donor_ids, \@is_normals, \@is_normal_for_donors, \@bam_states)
+  warn "\n#--- check donors\' normal/tumour/nominated_normal.. \n";
+  my ($donor_ids_ref, $is_normals_ref, $is_normal_for_donors_ref, $bam_states_ref) = @_;
+  my %donors;
+  for my $i (0..scalar @$is_normals_ref - 1) {
+    if (! exists $donors{${$donor_ids_ref}[$i]}) {
+      $donors{${$donor_ids_ref}[$i]}{'nomal'} = 0;
+      $donors{${$donor_ids_ref}[$i]}{'nominated'} = 0;
+      $donors{${$donor_ids_ref}[$i]}{'tumour'} = 0;
+    }
+    if(${$is_normals_ref}[$i] =~ $VALID_IS_NORMALS) {
+      if (${$is_normals_ref}[$i] =~ $VALID_IS_NORMALS_IS) {
+        $donors{${$donor_ids_ref}[$i]}{'nomal'} += 1;
+      } else {
+        $donors{${$donor_ids_ref}[$i]}{'tumour'} += 1;
+      }
+    }
+    if(${$is_normal_for_donors_ref}[$i] =~ $VALID_IS_NORMAL_FOR_DONORS && ${$is_normal_for_donors_ref}[$i] =~ $VALID_IS_NORMAL_FOR_DONORS_IS) {
+      $donors{${$donor_ids_ref}[$i]}{'nominated'} += 1;
+    }
+  }
+  for my $i (0..scalar @$is_normals_ref - 1) {
+    my @bam_state;
+    if (
+    $donors{${$donor_ids_ref}[$i]}{'nomal'} == 0) {
+      push @bam_state, $FAIL_CODES{'015'};
+    }
+    if (
+    $donors{${$donor_ids_ref}[$i]}{'tumour'} == 0) {
+      push @bam_state, $FAIL_CODES{'016'};
+    }
+    if (
+    $donors{${$donor_ids_ref}[$i]}{'nominated'} == 0) {
+      push @bam_state, $FAIL_CODES{'012'};
+    }
+    if (
+    $donors{${$donor_ids_ref}[$i]}{'nominated'} > 1) {
+      push @bam_state, $FAIL_CODES{'014'};
+    }
+    if(${$is_normals_ref}[$i] !~ $VALID_IS_NORMALS_IS && ${$is_normal_for_donors_ref}[$i] =~ $VALID_IS_NORMAL_FOR_DONORS_IS) {
+      push @bam_state, $FAIL_CODES{'013'};
+    }
+    if (scalar @bam_state > 0) {
+      if (${$bam_states_ref}[$i] eq 'raw' || ${$bam_states_ref}[$i] eq 'pp-remapped') {
+        ${$bam_states_ref}[$i] = 'failed:'.join '; ', @bam_state;
+      } else {
+        ${$bam_states_ref}[$i] .= ';'.join '; ', @bam_state;
+      }
+    }
+  }
+  return $bam_states_ref;
 }
 
 sub bam_header_to_hash { # note @CO line is not necessarily tab delimited.
