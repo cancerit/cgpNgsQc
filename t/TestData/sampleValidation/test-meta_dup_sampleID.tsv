@@ -1,0 +1,4 @@
+#Donor_ID	Tissue_ID	is_normal	is_normal_for_donor	Sample_ID	relative_file_path
+  fake donor 1	fake tissue	Y	Y	test	bam file 1
+  fake donor 1	fake tissue	Y		test2	bam file 2
+  fake donor 1	fake tissue1	N		test	test_sample_1_file
