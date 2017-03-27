@@ -48,7 +48,7 @@ my $opts = setup_options();
 my $obj = Sanger::CGP::NgsQc::ValidateSampleMetaAndBamHeader->new($opts);
 
 if($obj->{validate_status}) {
-  warn "\n--------\nSamples validated successfully!\n--------\n"; # hide the tsv/xls/xlsx here
+  warn "\n--------\nSamples validated successfully!\n--------\n";
 } else {
   warn "\n--------\nValidation failed, please check output:$opts->{'o'} for issues.\n--------\n";
 }
@@ -78,7 +78,7 @@ sub setup_options {
 
   pod2usage(-message => "\nERROR: Option 'i|in' required and the file must exist .", -verbose => 0) if(!defined $opts{'i'} || ! -e $opts{'i'});
   pod2usage(-message => "\nERROR: Option 'o|out' required.", -verbose => 0) unless(defined $opts{'o'});
-  pod2usage(-message => "\nERROR: Option 'f|format' must be be one of the 3 formats tsv|xls|xlsx, default to tsv.", -verbose => 0) if($opts{'f'} !~ m/^xls$|^xlsx$|^tsv$/i);
+  pod2usage(-message => "\nERROR: Option 'f|format' must be be one of the 3 formats [tsv|xls|xlsx].", -verbose => 0) if($opts{'f'} !~ m/^xls$|^xlsx$|^tsv$/i);
   pod2usage(-message => "\nERROR: Input does not have .xls extension.", -verbose => 0) if($opts{'f'} =~ m/^xls$/i && $opts{'i'} !~ m/\.xls$/i);
   pod2usage(-message => "\nERROR: Input does not have .xlsx extension.", -verbose => 0) if($opts{'f'} =~ m/^xlsx$/i && $opts{'i'} !~ m/\.xlsx$/i);
   pod2usage(-message => "\nERROR: Output does not have .xls extension.", -verbose => 0) if($opts{'f'} =~ m/^xls$/i && $opts{'o'} !~ m/\.xls$/i);
@@ -100,12 +100,12 @@ validate_smaple_meta.pl [options]
   Required parameters:
     -in          -i    Input file. First column must be DONOR_ID.
     -out         -o    Output file (It'll be in the format as specified with '-format'. Extension name will be added when missing).
-    -format      -f    Input file format (xlsx, xls or tsv. Optional, default to tsv).
+    -format      -f    Input file format (xlsx, xls or tsv).
 
   Other:
-    -help        -h   Brief help message.
-    -man         -m   Full documentation.
-    -version      -v  Shows version.
+    -help        -h    Brief help message.
+    -man         -m    Full documentation.
+    -version     -v    Shows version.
 
 =head1 OPTIONS
 
@@ -121,7 +121,7 @@ Output file name. It'll be in the format as specified with '-format'. Appropriat
 
 =item B<-format>
 
-Input file format [tsv|xlsx|xls]. Default to 'tsv'.
+Input file format [tsv|xlsx|xls].
 
 =item B<-help>
 
