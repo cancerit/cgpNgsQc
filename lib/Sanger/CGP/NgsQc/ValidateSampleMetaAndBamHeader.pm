@@ -164,7 +164,7 @@ sub validate_samples {
     my @colnames = split "\t", $header_line;
     my %header_checks;
     for my $i (0..$#colnames) {
-      if ($colnames[$i] =~ m/$HEADER_DONOR_ID/i) {
+      if ($colnames[$i] =~ m/^\#?$HEADER_DONOR_ID$/i) {
         $donor_index = $i;
         if (! exists $header_checks{$HEADER_DONOR_ID}) {
           warn "Column $colnames[$i]:$donor_index -> $HEADER_DONOR_ID\n";
@@ -172,7 +172,7 @@ sub validate_samples {
         } else {
           croak sprintf $FMT_ERR, "Duplicated header $HEADER_DONOR_ID found!";
         }
-      } elsif ($colnames[$i] =~ m/$HEADER_TISSUE_ID/i) {
+      } elsif ($colnames[$i] =~ m/^\#?$HEADER_TISSUE_ID$/i) {
         $tissue_index = $i;
         warn "Column $colnames[$i]:$tissue_index -> $HEADER_TISSUE_ID\n";
         if (! exists $header_checks{$HEADER_TISSUE_ID}) {
@@ -180,7 +180,7 @@ sub validate_samples {
         } else {
           croak sprintf $FMT_ERR, "Duplicated header $HEADER_TISSUE_ID found!";
         }
-      } elsif ($colnames[$i] =~ m/^$HEADER_IS_NORMAL$/i) {
+      } elsif ($colnames[$i] =~ m/^\#?$HEADER_IS_NORMAL$/i) {
         $is_normal_index = $i;
         warn "Column $colnames[$i]:$is_normal_index -> $HEADER_IS_NORMAL\n";
         if (! exists $header_checks{$HEADER_IS_NORMAL}) {
@@ -188,7 +188,7 @@ sub validate_samples {
         } else {
           croak sprintf $FMT_ERR, "Duplicated header $HEADER_IS_NORMAL found!";
         }
-      } elsif ($colnames[$i] =~ m/^$HEADER_IS_NORMAL_FOR_DONOR$/i) {
+      } elsif ($colnames[$i] =~ m/^\#?$HEADER_IS_NORMAL_FOR_DONOR$/i) {
         $is_normal_for_donor_index = $i;
         warn "Column $colnames[$i]:$is_normal_for_donor_index -> $HEADER_IS_NORMAL_FOR_DONOR\n";
         if (! exists $header_checks{$HEADER_IS_NORMAL_FOR_DONOR}) {
@@ -196,7 +196,7 @@ sub validate_samples {
         } else {
           croak sprintf $FMT_ERR, "Duplicated header $HEADER_IS_NORMAL_FOR_DONOR found!";
         }
-      } elsif ($colnames[$i] =~ m/$HEADER_SAMPLE_ID/i) {
+      } elsif ($colnames[$i] =~ m/^\#?$HEADER_SAMPLE_ID$/i) {
         $sample_index = $i;
         warn "Column $colnames[$i]:$sample_index -> $HEADER_SAMPLE_ID\n";
         if (! exists $header_checks{$HEADER_SAMPLE_ID}) {
@@ -204,7 +204,7 @@ sub validate_samples {
         } else {
           croak sprintf $FMT_ERR, "Duplicated header $HEADER_SAMPLE_ID found!";
         }
-      } elsif ($colnames[$i] =~ m/$HEADER_BAM/i) {
+      } elsif ($colnames[$i] =~ m/^\#?$HEADER_BAM$/i) {
         $bam_index = $i;
         warn "Column $colnames[$i]:$bam_index -> $HEADER_BAM\n";
         if (! exists $header_checks{$HEADER_BAM}) {
