@@ -16,6 +16,7 @@ addons:
    - libncurses5-dev
    - libpstreams-dev
    - unzip
+   - liblzma-dev
 
 install: true
 
