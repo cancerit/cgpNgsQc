@@ -32,7 +32,6 @@
 ########## LICENCE ##########
 
 SOURCE_VERIFYBAM="https://github.com/statgen/verifyBamID/releases/download/v1.1.2/verifyBamID.1.1.2"
-SOURCE_SAMTOOLS="https://github.com/samtools/samtools/releases/download/1.5/samtools-1.5.tar.bz2"
 
 get_file () {
   if hash curl 2>/dev/null; then
@@ -40,25 +39,6 @@ get_file () {
   else
     wget -nv -O $1 $2
   fi
-}
-
-get_distro () {
-  EXT=""
-  DECOMP=""
-  if [[ $2 == *.tar.bz2* ]] ; then
-    EXT="tar.bz2"
-    DECOMP="-j"
-  elif [[ $2 == *.tar.gz* ]] ; then
-    EXT="tar.gz"
-    DECOMP="-z"
-  else
-    echo "I don't understand the file type for $1"
-    exit 1
-  fi
-
-  get_file $1.$EXT $2
-  mkdir -p $1
-  tar --strip-components 1 -C $1 $DECOMP -xf $1.$EXT
 }
 
 if [[ ($# -ne 1 && $# -ne 2) ]] ; then
@@ -129,11 +109,6 @@ if [[ "x$CHK" == "x" ]] ; then
   exit 1;
 fi
 
-CHK=`which samtools`
-if [[ "x$CHK" == "x" ]] ; then
-  COMPILE="samtools"
-fi
-
 perlmods=( "File::ShareDir::Install" )
 
 set -e
@@ -155,21 +130,6 @@ get_file "verifyBamId" $SOURCE_VERIFYBAM
 cp $SETUP_DIR/verifyBamId $INST_PATH/bin/.
 chmod +x $INST_PATH/bin/verifyBamId
 cd $INIT_DIR
-
-if [[ ",$COMPILE," == *,samtools,* ]] ; then
-  echo -n "Building samtools ..."
-  cd $SETUP_DIR
-  rm -rf samtools
-  get_distro "samtools" $SOURCE_SAMTOOLS
-  cd samtools
-  ./configure --enable-plugins --enable-libcurl --prefix=$INST_PATH
-  make -j$CPU all all-htslib
-  make install all all-htslib
-  cd $SETUP_DIR
-  rm -f samtools.tar.bz2
-else
-  echo "samtools exists - will not install"
-fi
 
 echo "Installing cgpNgsQc ..."
 cd $INIT_DIR
