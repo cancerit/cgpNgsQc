@@ -69,8 +69,6 @@ echo "Max compilation CPUs set to $CPU"
 # get current directory
 INIT_DIR=`pwd`
 
-set -e
-
 # cleanup inst_path
 mkdir -p $INST_PATH/bin
 cd $INST_PATH
