@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 ########## LICENCE ##########
-# Copyright (c) 2014-2017 Genome Research Ltd.
+# Copyright (c) 2014-2018 Genome Research Ltd.
 #
 # Author: Keiran Raine <cgpit@sanger.ac.uk>
 #
@@ -107,11 +107,14 @@ compareBamGenotypes.pl - Compare a set of BAM files from the same donor.
 
 compareBamGenotypes.pl [options]
 
+  CRAM use relies on REF_PATH and REF_CACHE env variables
+    see http://www.htslib.org/doc/samtools.html#ENVIRONMENT_VARIABLES
+
   Required parameters:
 
     -outdir       -o    Directory for output.
-    -tumour_bams  -tb   Tumour BAM file(s) to process.
-    -normal_bam   -nb   Normal BAM file to process.
+    -tumour_bams  -tb   Tumour BAM/CRAM file(s) to process.
+    -normal_bam   -nb   Normal BAM/CRAM file to process.
 
   Optional parameters:
     -json         -j  Output summary as JSON string '-' for STDOUT.

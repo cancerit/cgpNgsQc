@@ -123,13 +123,14 @@ verifyBamHomChk.pl - Runs verify BAM
 
 verifyBamHomChk.pl [options]
 
+  CRAM use relies on REF_PATH and REF_CACHE env variables
+    see http://www.htslib.org/doc/samtools.html#ENVIRONMENT_VARIABLES
+
   Required parameters:
 
     -outdir   -o  Directory for output
 
     -bam      -b  BAM/CRAM file to process
-                   - CRAM use relies on REF_PATH and REF_CACHE env variables
-                      see http://www.htslib.org/doc/samtools.html#ENVIRONMENT_VARIABLES
 
   Optional parameters:
 
