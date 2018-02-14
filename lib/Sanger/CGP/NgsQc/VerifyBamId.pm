@@ -55,8 +55,7 @@ const my $VERIFY => qq{%s --precise --maxDepth 200 --minMapQ $MIN_MAP_Q --minQ 1
 # 512 - read fails platform/vendor quality checks (0x200)
 # 1024 - read is PCR or optical duplicate (0x400)
 # 2048 - supplementary alignment (0x800)
-const my $CRAMTOBAM => qq{%s view -F 3844 -L %s -q $MIN_MAP_Q -b %s -o %s};
-const my $SAMIDX => qq{%s index %s > %s.bai};
+const my $CRAMTOBAM => qq{%s view -F 3844 -L %s -q $MIN_MAP_Q -b %s | tee %s | samtools index - %s.bai};
 
 sub new {
   my ($class, $bam) = @_;
@@ -191,10 +190,6 @@ sub subsamp_cram_to_bam {
 
   my $samtools = which('samtools');
   my $command = sprintf $CRAMTOBAM, $samtools, $bed_locs, $self->{'bam'}, $sub_bam, $sub_bam;
-  warn "Running: $command\n";
-  my ($stdout, $stderr, $exit) = capture { system($command); };
-  die "An error occurred while executing:\n\t$command\nERROR: $stderr\n" if($exit);
-  $command = sprintf $CRAMTOBAM, $samtools, $sub_bam;
   warn "Running: $command\n";
   my ($stdout, $stderr, $exit) = capture { system($command); };
   die "An error occurred while executing:\n\t$command\nERROR: $stderr\n" if($exit);
