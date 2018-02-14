@@ -107,9 +107,6 @@ compareBamGenotypes.pl - Compare a set of BAM files from the same donor.
 
 compareBamGenotypes.pl [options]
 
-  CRAM use relies on REF_PATH and REF_CACHE env variables
-    see http://www.htslib.org/doc/samtools.html#ENVIRONMENT_VARIABLES
-
   Required parameters:
 
     -outdir       -o    Directory for output.
@@ -123,3 +120,6 @@ compareBamGenotypes.pl [options]
     -help         -h  Brief help message.
     -man          -m  Full documentation.
     -version      -v  Shows version.
+
+  CRAM use relies on REF_PATH and REF_CACHE env variables
+    see http://www.htslib.org/doc/samtools.html#ENVIRONMENT_VARIABLES
