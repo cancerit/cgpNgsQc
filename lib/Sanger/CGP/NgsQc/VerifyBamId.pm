@@ -147,7 +147,10 @@ sub run_verifyBam {
   my ($stdout, $stderr, $exit) = capture { system($command); };
   die "An error occurred while executing:\n\t$command\nERROR: $stderr\n" if($exit);
 
-  unlink $bam if($bam =~ m/\.cram$/);
+  if($self->{'bam'} =~ m/\.cram$/) {
+    unlink $bam;
+    unlink $bam.'.bai';
+  }
 
   my $result = "$out_stub.selfSM";
   open my $RES, '<', $result;
