@@ -47,7 +47,7 @@ use IO::Uncompress::Gunzip qw($GunzipError);
 
 const my $MIN_MAP_Q => 10;
 
-const my $VERIFY => qq{%s --precise --maxDepth 200 --minMapQ $MIN_MAP_Q --minQ 13 --maxQ 40 --grid 0.05 --ignoreOverlapPair --self --vcf %s --bam %s --out %s};
+const my $VERIFY => qq{%s --noPhoneHome --precise --maxDepth 200 --minMapQ $MIN_MAP_Q --minQ 13 --maxQ 40 --grid 0.05 --ignoreOverlapPair --self --vcf %s --bam %s --out %s};
 
 ## flags set to discard:
 # 4 - read unmapped (0x4)
