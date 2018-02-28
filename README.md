@@ -28,7 +28,7 @@ The docker image is know to work correctly after import into a singularity image
 ```
 Copyright (c) 2014-2018 Genome Research Ltd.
 
-Author: Keiran Raine <cgpit@sanger.ac.uk>
+Author: CASM/Cancer IT <cgphelp@sanger.ac.uk>
 
 This file is part of cgpNgsQc.
 
