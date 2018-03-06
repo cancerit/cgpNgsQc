@@ -6,6 +6,22 @@ Collection of code for checking NSG sequencing results.
 | --------------------------------------------- | ----------------------------------------------- |
 | [![Master Badge][travis-master]][travis-base] | [![Develop Badge][travis-develop]][travis-base] |
 
+
+Contents:
+
+<!-- TOC depthFrom:2 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
+
+- [Usage](#usage)
+- [Dependancies](#dependancies)
+- [Docker, Singularity and Dockstore](#docker-singularity-and-dockstore)
+- [LICENCE](#licence)
+
+<!-- /TOC -->
+
+## Usage
+
+Please see the [wiki](https://travis-ci.org/cancerit/cgpNgsQc/wiki) for details of usage.
+
 ## Dependancies
 
 * [Bio::DB::HTS](http://search.cpan.org/~rishidev/Bio-DB-HTS)
