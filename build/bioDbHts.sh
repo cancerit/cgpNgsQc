@@ -51,11 +51,9 @@ PERLROOT=$INST_PATH/lib/perl5
 export PERL5LIB="$PERLROOT"
 export PATH="$INST_PATH/bin:$PATH"
 
+set +e
 CHK=`perl -le 'eval "require $ARGV[0]" and print $ARGV[0]->VERSION' Bio::DB::HTS`
-if [[ "x$CHK" != "x" ]] ; then
-  echo "Bio::DB::HTS already installed: $CHK"
-  exit 0
-fi
+SAM=`which samtools`
 
 CPU=`grep -c ^processor /proc/cpuinfo`
 if [ $? -eq 0 ]; then
@@ -65,6 +63,7 @@ if [ $? -eq 0 ]; then
 else
   CPU=1
 fi
+set -e
 echo "Max compilation CPUs set to $CPU"
 
 cd $INIT_DIR
@@ -73,66 +72,69 @@ cd $INIT_DIR
 SETUP_DIR=$INIT_DIR/install_tmp
 mkdir -p $SETUP_DIR
 
-echo -n "Get htslib ..."
-if [ -e $SETUP_DIR/htslibGet.success ]; then
-  echo " already staged ...";
-else
-  echo
-  cd $SETUP_DIR
-  get_distro "htslib" $SOURCE_HTSLIB
-  touch $SETUP_DIR/htslibGet.success
-fi
-
-cd $INIT_DIR
-echo -n "Building htslib ..."
-if [ -e $SETUP_DIR/htslib.success ]; then
-  echo " previously installed ...";
-else
-  echo
-  cd $SETUP_DIR
-  mkdir -p htslib
-  tar --strip-components 1 -C htslib -jxf htslib.tar.bz2
-  cd htslib
-  ./configure --enable-plugins --enable-libcurl --prefix=$INST_PATH
-  make -j$CPU
-  make install
-  cd $SETUP_DIR
-  touch $SETUP_DIR/htslib.success
-fi
-
-export HTSLIB=$INST_PATH
-
-CHK=`perl -le 'eval "require $ARGV[0]" and print $ARGV[0]->VERSION' Bio::DB::HTS`
 if [[ "x$CHK" == "x" ]] ; then
-  echo -n "Building Bio::DB::HTS ..."
-  if [ -e $SETUP_DIR/biohts.success ]; then
+  echo -n "Get htslib ..."
+  if [ -e $SETUP_DIR/htslibGet.success ]; then
+    echo " already staged ...";
+  else
+    echo
+    cd $SETUP_DIR
+    get_distro "htslib" $SOURCE_HTSLIB
+    touch $SETUP_DIR/htslibGet.success
+  fi
+
+  cd $INIT_DIR
+  echo -n "Building htslib ..."
+  if [ -e $SETUP_DIR/htslib.success ]; then
     echo " previously installed ...";
   else
     echo
     cd $SETUP_DIR
-    rm -rf bioDbHts
-    get_distro "bioDbHts" $SOURCE_BIOBDHTS
-    mkdir -p bioDbHts
-    tar --strip-components 1 -C bioDbHts -zxf bioDbHts.tar.gz
-    cd bioDbHts
-    perlmods=( "ExtUtils::CBuilder" "Module::Build~0.42" "Bio::Root::Version~1.006924")
-    for i in "${perlmods[@]}" ; do
-      cpanm --no-wget --no-interactive --notest --mirror http://cpan.metacpan.org -l $INST_PATH $i
-    done
-    perl Build.PL --htslib=$HTSLIB --install_base=$INST_PATH
-    ./Build
-    ./Build test
-    ./Build install
+    mkdir -p htslib
+    tar --strip-components 1 -C htslib -jxf htslib.tar.bz2
+    cd htslib
+    ./configure --enable-plugins --enable-libcurl --prefix=$INST_PATH
+    make -j$CPU
+    make install
     cd $SETUP_DIR
-    rm -f bioDbHts.tar.gz
-    touch $SETUP_DIR/biohts.success
+    touch $SETUP_DIR/htslib.success
+  fi
+
+  export HTSLIB=$INST_PATH
+
+  CHK=`perl -le 'eval "require $ARGV[0]" and print $ARGV[0]->VERSION' Bio::DB::HTS`
+  if [[ "x$CHK" == "x" ]] ; then
+    echo -n "Building Bio::DB::HTS ..."
+    if [ -e $SETUP_DIR/biohts.success ]; then
+      echo " previously installed ...";
+    else
+      echo
+      cd $SETUP_DIR
+      rm -rf bioDbHts
+      get_distro "bioDbHts" $SOURCE_BIOBDHTS
+      mkdir -p bioDbHts
+      tar --strip-components 1 -C bioDbHts -zxf bioDbHts.tar.gz
+      cd bioDbHts
+      perlmods=( "ExtUtils::CBuilder" "Module::Build~0.42" "Bio::Root::Version~1.006924")
+      for i in "${perlmods[@]}" ; do
+        cpanm --no-wget --no-interactive --notest --mirror http://cpan.metacpan.org -l $INST_PATH $i
+      done
+      perl Build.PL --htslib=$HTSLIB --install_base=$INST_PATH
+      ./Build
+      ./Build test
+      ./Build install
+      cd $SETUP_DIR
+      rm -f bioDbHts.tar.gz
+      touch $SETUP_DIR/biohts.success
+    fi
+  else
+    echo "Bio::DB::HTS already installed ..."
   fi
 else
   echo "Bio::DB::HTS already installed ..."
 fi
 
-SAM=`which samtools`
-if [[ "x$SAM" != "x" ]] ; then
+if [[ "x$SAM" == "x" ]] ; then
   echo "Building samtools ..."
   cd $SETUP_DIR
   rm -rf samtools
