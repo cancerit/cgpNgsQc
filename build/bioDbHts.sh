@@ -1,30 +1,8 @@
 #!/bin/bash
 
-SOURCE_HTSLIB="https://github.com/samtools/htslib/releases/download/1.7/htslib-1.7.tar.bz2"
-SOURCE_SAMTOOLS="https://github.com/samtools/samtools/releases/download/1.7/samtools-1.7.tar.bz2"
-SOURCE_BIOBDHTS="https://github.com/Ensembl/Bio-HTS/archive/2.9.tar.gz"
-
-get_distro () {
-  EXT=""
-  if [[ $2 == *.tar.bz2* ]] ; then
-    EXT="tar.bz2"
-  elif [[ $2 == *.zip* ]] ; then
-    echo "ERROR: zip archives are not supported by default, if pulling from github replace .zip with .tar.gz"
-    exit 1
-  elif [[ $2 == *.tar.gz* ]] ; then
-    EXT="tar.gz"
-  else
-    echo "I don't understand the file type for $1"
-    exit 1
-  fi
-  rm -f $1.$EXT
-  if hash curl 2>/dev/null; then
-    curl --retry 10 -sS -o $1.$EXT -L $2
-  else
-    echo "ERROR: curl not found"
-    exit 1
-  fi
-}
+VER_HTSLIB="1.7"
+VER_SAMTOOLS="1.7"
+VER_BIODBHTS="2.9"
 
 if [ "$#" -ne "1" ] ; then
   echo "Please provide an installation path  such as /opt/ICGC"
@@ -51,102 +29,62 @@ PERLROOT=$INST_PATH/lib/perl5
 export PERL5LIB="$PERLROOT"
 export PATH="$INST_PATH/bin:$PATH"
 
-set +e
-CHK=`perl -le 'eval "require $ARGV[0]" and print $ARGV[0]->VERSION' Bio::DB::HTS`
-SAM=`which samtools`
-
-CPU=`grep -c ^processor /proc/cpuinfo`
-if [ $? -eq 0 ]; then
-  if [ "$CPU" -gt "6" ]; then
-    CPU=6
-  fi
-else
-  CPU=1
-fi
-set -e
-echo "Max compilation CPUs set to $CPU"
+CPU=2
 
 cd $INIT_DIR
 
 #create a location to build dependencies
 SETUP_DIR=$INIT_DIR/install_tmp
 mkdir -p $SETUP_DIR
-
-if [[ "x$CHK" == "x" ]] ; then
-  echo -n "Get htslib ..."
-  if [ -e $SETUP_DIR/htslibGet.success ]; then
-    echo " already staged ...";
-  else
-    echo
-    cd $SETUP_DIR
-    get_distro "htslib" $SOURCE_HTSLIB
-    touch $SETUP_DIR/htslibGet.success
-  fi
-
-  cd $INIT_DIR
-  echo -n "Building htslib ..."
-  if [ -e $SETUP_DIR/htslib.success ]; then
-    echo " previously installed ...";
-  else
-    echo
-    cd $SETUP_DIR
-    mkdir -p htslib
-    tar --strip-components 1 -C htslib -jxf htslib.tar.bz2
-    cd htslib
-    ./configure --enable-plugins --enable-libcurl --prefix=$INST_PATH
-    make -j$CPU
-    make install
-    cd $SETUP_DIR
-    touch $SETUP_DIR/htslib.success
-  fi
-
-  export HTSLIB=$INST_PATH
-
-  CHK=`perl -le 'eval "require $ARGV[0]" and print $ARGV[0]->VERSION' Bio::DB::HTS`
-  if [[ "x$CHK" == "x" ]] ; then
-    echo -n "Building Bio::DB::HTS ..."
-    if [ -e $SETUP_DIR/biohts.success ]; then
-      echo " previously installed ...";
-    else
-      echo
-      cd $SETUP_DIR
-      rm -rf bioDbHts
-      get_distro "bioDbHts" $SOURCE_BIOBDHTS
-      mkdir -p bioDbHts
-      tar --strip-components 1 -C bioDbHts -zxf bioDbHts.tar.gz
-      cd bioDbHts
-      perlmods=( "ExtUtils::CBuilder" "Module::Build~0.42" "Bio::Root::Version~1.006924")
-      for i in "${perlmods[@]}" ; do
-        cpanm --no-wget --no-interactive --notest --mirror http://cpan.metacpan.org -l $INST_PATH $i
-      done
-      perl Build.PL --htslib=$HTSLIB --install_base=$INST_PATH
-      ./Build
-      ./Build test
-      ./Build install
-      cd $SETUP_DIR
-      rm -f bioDbHts.tar.gz
-      touch $SETUP_DIR/biohts.success
-    fi
-  else
-    echo "Bio::DB::HTS already installed ..."
-  fi
-else
-  echo "Bio::DB::HTS already installed ..."
+cd $SETUP_DIR
+## HTSLIB (tar.bz2)
+if [ ! -e $SETUP_DIR/htslib.success ]; then
+  rm -rf htslib
+  mkdir -p htslib
+  curl -sSL --retry 10 https://github.com/samtools/htslib/releases/download/${VER_HTSLIB}/htslib-${VER_HTSLIB}.tar.bz2 > distro.tar.bz2
+  tar --strip-components 1 -C htslib -jxf distro.tar.bz2
+  cd htslib
+  ./configure --enable-plugins --enable-libcurl --prefix=$INST_PATH
+  make clean
+  make -j$CPU
+  make install
+  cd $SETUP_DIR
+  rm -rf distro.*
+  touch $SETUP_DIR/htslib.success
 fi
 
-if [[ "x$SAM" == "x" ]] ; then
-  echo "Building samtools ..."
+mkdir -p distro # reused
+## SAMTOOLS (tar.bz2)
+if [ ! -e $SETUP_DIR/samtools.success ]; then
+  curl -sSL --retry 10 https://github.com/samtools/samtools/releases/download/${VER_SAMTOOLS}/samtools-${VER_SAMTOOLS}.tar.bz2 > distro.tar.bz2
+  tar --strip-components 1 -C distro -xjf distro.tar.bz2
+  cd distro
+  ./configure --enable-plugins --enable-libcurl --with-htslib=$INST_PATH --prefix=$INST_PATH
+  make clean
+  make -j1 all
+  make install
   cd $SETUP_DIR
-  rm -rf samtools
-  get_distro "samtools" $SOURCE_SAMTOOLS
-  mkdir -p samtools
-  tar --strip-components 1 -C samtools -xjf samtools.tar.bz2
-  cd samtools
-  ./configure --enable-plugins --enable-libcurl --prefix=$INST_PATH
-  make -j$CPU all all-htslib
-  make install all all-htslib
+  rm -rf distro.* distro/*
+  touch $SETUP_DIR/samtools.success
+fi
+
+## Bio::DB::HTS (tar.gz)
+if [ ! -e $SETUP_DIR/Bio-DB-HTS.success ]; then
+  ## add perl deps
+  cpanm --no-wget --no-interactive --notest --mirror http://cpan.metacpan.org -l $INST_PATH Module::Build
+  cpanm --no-wget --no-interactive --notest --mirror http://cpan.metacpan.org -l $INST_PATH Bio::Root::Version
+
+  curl -sSL --retry 10 https://github.com/Ensembl/Bio-DB-HTS/archive/${VER_BIODBHTS}.tar.gz > distro.tar.gz
+  rm -rf distro/*
+  tar --strip-components 1 -C distro -zxf distro.tar.gz
+  cd distro
+  perl Build.PL --install_base=$INST_PATH --htslib=$INST_PATH
+  ./Build
+  ./Build test
+  ./Build install
   cd $SETUP_DIR
-  rm -f samtools.tar.bz2
+  rm -rf distro.* distro/*
+  touch $SETUP_DIR/Bio-DB-HTS.success
 fi
 
 # cleanup all junk
