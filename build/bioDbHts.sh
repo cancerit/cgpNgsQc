@@ -116,7 +116,7 @@ if [[ "x$CHK" == "x" ]] ; then
     cd bioDbHts
     perlmods=( "ExtUtils::CBuilder" "Module::Build~0.42" "Bio::Root::Version~1.006924")
     for i in "${perlmods[@]}" ; do
-      $CPANM --no-wget --no-interactive --notest --mirror http://cpan.metacpan.org -l $INST_PATH $i
+      cpanm --no-wget --no-interactive --notest --mirror http://cpan.metacpan.org -l $INST_PATH $i
     done
     perl Build.PL --htslib=$HTSLIB --install_base=$INST_PATH
     ./Build
