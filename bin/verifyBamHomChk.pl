@@ -1,9 +1,9 @@
 #!/usr/bin/perl
 
 ########## LICENCE ##########
-# Copyright (c) 2014-2017 Genome Research Ltd.
+# Copyright (c) 2014-2018 Genome Research Ltd.
 #
-# Author: Keiran Raine <cgpit@sanger.ac.uk>
+# Author: CASM/Cancer IT <cgphelp@sanger.ac.uk>
 #
 # This file is part of cgpNgsQc.
 #
@@ -52,9 +52,10 @@ my $options = &setup;
 my $verify = Sanger::CGP::NgsQc::VerifyBamId->new($options->{'bam'});
 $verify->set_ascat($options->{'ascat'}) if(exists $options->{'ascat'});
 $verify->set_snps($options->{'snps'}) if(exists $options->{'snps'});
+$verify->set_workspace($options->{'out'});
 $verify->set_downsample($options->{'downsamp'});
-$verify->filter_loci($options->{'out'});
-$verify->run_verifyBam;
+$verify->filter_loci();
+$verify->run_verifyBam();
 
 if(defined $options->{'json'}) {
   if($options->{'json'} eq '-') {
@@ -126,7 +127,7 @@ verifyBamHomChk.pl [options]
 
     -outdir   -o  Directory for output
 
-    -bam      -b  BAM file to process
+    -bam      -b  BAM/CRAM file to process
 
   Optional parameters:
 
@@ -145,3 +146,8 @@ verifyBamHomChk.pl [options]
     -help     -h  Brief help message.
     -man      -m  Full documentation.
     -version  -v  Shows version.
+
+  CRAM use relies on REF_PATH and REF_CACHE env variables
+    see http://www.htslib.org/doc/samtools.html#ENVIRONMENT_VARIABLES
+
+  CRAM is functional, not fast.

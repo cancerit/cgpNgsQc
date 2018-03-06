@@ -1,9 +1,9 @@
 #!/bin/bash
 
 ########## LICENCE ##########
-# Copyright (c) 2014-2016 Genome Research Ltd.
+# Copyright (c) 2014-2018 Genome Research Ltd.
 #
-# Author: Keiran Raine <cgpit@sanger.ac.uk>
+# Author: CASM/Cancer IT <cgphelp@sanger.ac.uk>
 #
 # This file is part of cgpNgsQc.
 #
@@ -31,7 +31,7 @@
 # 2009, 2010, 2011, 2012’."
 ########## LICENCE ##########
 
-SOURCE_VERIFYBAM="https://github.com/statgen/verifyBamID/releases/download/v1.1.2/verifyBamID.1.1.2"
+SOURCE_VERIFYBAM="https://github.com/statgen/verifyBamID/releases/download/v1.1.3/verifyBamID"
 
 get_file () {
   if hash curl 2>/dev/null; then
@@ -68,8 +68,6 @@ echo "Max compilation CPUs set to $CPU"
 
 # get current directory
 INIT_DIR=`pwd`
-
-set -e
 
 # cleanup inst_path
 mkdir -p $INST_PATH/bin

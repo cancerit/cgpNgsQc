@@ -1,9 +1,9 @@
 #!/usr/bin/perl
 
 ########## LICENCE ##########
-# Copyright (c) 2014-2017 Genome Research Ltd.
+# Copyright (c) 2014-2018 Genome Research Ltd.
 #
-# Author: Keiran Raine <cgpit@sanger.ac.uk>
+# Author: CASM/Cancer IT <cgphelp@sanger.ac.uk>
 #
 # This file is part of cgpNgsQc.
 #
@@ -110,8 +110,8 @@ compareBamGenotypes.pl [options]
   Required parameters:
 
     -outdir       -o    Directory for output.
-    -tumour_bams  -tb   Tumour BAM file(s) to process.
-    -normal_bam   -nb   Normal BAM file to process.
+    -tumour_bams  -tb   Tumour BAM/CRAM file(s) to process.
+    -normal_bam   -nb   Normal BAM/CRAM file to process.
 
   Optional parameters:
     -json         -j  Output summary as JSON string '-' for STDOUT.
@@ -120,3 +120,6 @@ compareBamGenotypes.pl [options]
     -help         -h  Brief help message.
     -man          -m  Full documentation.
     -version      -v  Shows version.
+
+  CRAM use relies on REF_PATH and REF_CACHE env variables
+    see http://www.htslib.org/doc/samtools.html#ENVIRONMENT_VARIABLES

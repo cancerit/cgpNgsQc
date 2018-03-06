@@ -1,9 +1,9 @@
 package Sanger::CGP::NgsQc::CompareGenotypes;
 
 ########## LICENCE ##########
-# Copyright (c) 2014 Genome Research Ltd.
+# Copyright (c) 2014-2018 Genome Research Ltd.
 #
-# Author: Keiran Raine <cgpit@sanger.ac.uk>
+# Author: CASM/Cancer IT <cgphelp@sanger.ac.uk>
 #
 # This file is part of cgpNgsQc.
 #
@@ -119,7 +119,7 @@ sub compare_samples {
   $gender = 'XY' if($xy > 0); # any male specific loci present in normal results in XY call
   my %result_struct = ('sample' => $tumour,
                        'genotype' => {'frac_informative_genotype' =>  $informative / $loci_count,
-                                      'frac_matched_genotype' => $matched / $informative},
+                                      'frac_matched_genotype' => $informative > 0 ? $matched / $informative : 0},
                        'gender' => {'frac_match_gender' =>  $gender_match / $gender_loci_count,
                                     'gender' => $gender});
   push @{$self->{'summary'}{'tumours'}}, \%result_struct;
@@ -263,4 +263,3 @@ sub share_dir {
 }
 
 1;
-

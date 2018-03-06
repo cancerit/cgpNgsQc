@@ -1,25 +1,50 @@
-cgpNgsQc
-========
+# cgpNgsQc
 
 Collection of code for checking NSG sequencing results.
 
-[![Build Status](https://travis-ci.org/cancerit/cgpNgsQc.svg?branch=master)](https://travis-ci.org/cancerit/cgpNgsQc) : master  
-[![Build Status](https://travis-ci.org/cancerit/cgpNgsQc.svg?branch=develop)](https://travis-ci.org/cancerit/cgpNgsQc) : develop
+| Master                                        | Develop                                         |
+| --------------------------------------------- | ----------------------------------------------- |
+| [![Master Badge][travis-master]][travis-base] | [![Develop Badge][travis-develop]][travis-base] |
 
-Dependancies
-============
+
+Contents:
+
+<!-- TOC depthFrom:2 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
+
+- [Usage](#usage)
+- [Dependancies](#dependancies)
+- [Docker, Singularity and Dockstore](#docker-singularity-and-dockstore)
+- [LICENCE](#licence)
+
+<!-- /TOC -->
+
+## Usage
+
+Please see the [wiki](https://travis-ci.org/cancerit/cgpNgsQc/wiki) for details of usage.
+
+## Dependancies
 
 * [Bio::DB::HTS](http://search.cpan.org/~rishidev/Bio-DB-HTS)
 * [VerifyBamId](http://genome.sph.umich.edu/wiki/VerifyBamID)
 * [alleleCount](https://github.com/cancerit/alleleCount)
 
---
+## Docker, Singularity and Dockstore
 
-LICENCE
-=======
-Copyright (c) 2014-2017 Genome Research Ltd.
+There is a pre-built image containing this codebase on quay.io.
 
-Author: Keiran Raine <cgpit@sanger.ac.uk>
+* [dockstore-cgpwgs][ds-cgpwgs-git]
+  * Contains additional tools for WGS analysis.
+
+This was primarily designed for use with dockstore.org but can be used as a normal container.
+
+The docker image is know to work correctly after import into a singularity image.
+
+## LICENCE
+
+```
+Copyright (c) 2014-2018 Genome Research Ltd.
+
+Author: CASM/Cancer IT <cgphelp@sanger.ac.uk>
 
 This file is part of cgpNgsQc.
 
@@ -45,3 +70,9 @@ reads ‘Copyright (c) 2005, 2007, 2008, 2009, 2011, 2012’ and a copyright
 statement that reads ‘Copyright (c) 2005-2012’ should be interpreted as being
 identical to a statement that reads ‘Copyright (c) 2005, 2006, 2007, 2008,
 2009, 2010, 2011, 2012’."
+```
+
+<!-- Travis -->
+[travis-base]: https://travis-ci.org/cancerit/cgpNgsQc
+[travis-master]: https://travis-ci.org/cancerit/cgpNgsQc.svg?branch=master
+[travis-develop]: https://travis-ci.org/cancerit/cgpNgsQc.svg?branch=develop

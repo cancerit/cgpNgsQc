@@ -1,9 +1,9 @@
 package Sanger::CGP::NgsQc::ValidateSampleMetaAndBamHeader;
 
 ########## LICENCE ##########
-# Copyright (c) 2014-2017 Genome Research Ltd.
+# Copyright (c) 2014-2018 Genome Research Ltd.
 #
-# Author: Yaobo Xu <cgpit@sanger.ac.uk>
+# Author: CASM/Cancer IT <cgphelp@sanger.ac.uk>
 #
 # This file is part of cgpNgsQc.
 #
@@ -242,7 +242,11 @@ sub validate_samples {
     my @temp = split "\t", $lines[$i];
     if (scalar @temp == $ncol) {
       my ($sample_id, $bam) = ($temp[$sample_index], $temp[$bam_index]);
-      $bam =~ s/^\s+|\s+$//g; #trimming off leading and tailing spaces in file path
+      if ($bam =~ /^\s+|\s+$/) {
+        $bam =~ s/^\s+|\s+$//g; #trimming off leading and tailing spaces in file path
+        $temp[$bam_index] = $bam;
+        $lines[$i] = join("\t", @temp);
+      }
       $bam = File::Spec->catpath($in_volume, $in_directories, $bam);
       if (! exists $sample_id_checks{$sample_id}) {
         $sample_id_checks{$sample_id} = 1; push @sample_ids, $sample_id;
