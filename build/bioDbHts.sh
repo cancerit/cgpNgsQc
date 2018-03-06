@@ -114,6 +114,7 @@ if [[ "x$CHK" == "x" ]] ; then
     mkdir -p bioDbHts
     tar --strip-components 1 -C bioDbHts -zxf bioDbHts.tar.gz
     cd bioDbHts
+    cpanm --no-wget --no-interactive --notest --mirror http://cpan.metacpan.org --notest -l $INST_PATH --installdeps .
     perl Build.PL --htslib=$HTSLIB --install_base=$INST_PATH
     ./Build
     ./Build test
