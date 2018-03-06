@@ -25,9 +25,10 @@ perl:
  - "5.22"
 
 script:
+ - export PATH=$HOME/wtsi-opt/bin:$PATH
  - git clone --depth 1 --single-branch --branch dev https://github.com/cancerit/alleleCount.git
  - cd alleleCount
  - ./setup.sh $HOME/wtsi-opt
  - cd ../
- - build/bioDbHts.sh $HOME/wtsi-opt
+ - build/htstools.sh $HOME/wtsi-opt
  - ./setup.sh $HOME/wtsi-opt
