@@ -25,6 +25,7 @@ Please see the [wiki](https://travis-ci.org/cancerit/cgpNgsQc/wiki) for details 
 ## Dependancies
 
 * [Bio::DB::HTS](http://search.cpan.org/~rishidev/Bio-DB-HTS)
+* [Samtools](https://github.com/samtools/samtools/releases)
 * [VerifyBamId](http://genome.sph.umich.edu/wiki/VerifyBamID)
 * [alleleCount](https://github.com/cancerit/alleleCount)
 

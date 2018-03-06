@@ -1,6 +1,7 @@
 #!/bin/bash
 
 SOURCE_HTSLIB="https://github.com/samtools/htslib/releases/download/1.7/htslib-1.7.tar.bz2"
+SOURCE_SAMTOOLS="https://github.com/samtools/samtools/releases/download/1.7/samtools-1.7.tar.bz2"
 SOURCE_BIOBDHTS="https://github.com/Ensembl/Bio-HTS/archive/2.9.tar.gz"
 
 get_distro () {
@@ -129,9 +130,25 @@ if [[ "x$CHK" == "x" ]] ; then
 else
   echo "Bio::DB::HTS already installed ..."
 fi
-cd $INIT_DIR
+
+SAM=`which samtools`
+if [[ "x$SAM" != "x" ]] ; then
+  echo "Building samtools ..."
+  cd $SETUP_DIR
+  rm -rf samtools
+  get_distro "samtools" $SOURCE_SAMTOOLS
+  mkdir -p samtools
+  tar --strip-components 1 -C samtools -xjf samtools.tar.bz2
+  cd samtools
+  ./configure --enable-plugins --enable-libcurl --prefix=$INST_PATH
+  make -j$CPU all all-htslib
+  make install all all-htslib
+  cd $SETUP_DIR
+  rm -f samtools.tar.bz2
+fi
 
 # cleanup all junk
+cd $INIT_DIR
 rm -rf $SETUP_DIR
 
 exit 0
