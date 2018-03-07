@@ -28,8 +28,7 @@ ARCHNAME=`perl -e 'use Config; print $Config{archname};'`
 PERLROOT=$INST_PATH/lib/perl5
 export PERL5LIB="$PERLROOT"
 export PATH="$INST_PATH/bin:$PATH"
-
-CPU=2
+export LD_LIBRARY_PATH="$INST_PATH/lib:$PATH"
 
 cd $INIT_DIR
 
@@ -46,7 +45,7 @@ if [ ! -e $SETUP_DIR/htslib.success ]; then
   cd htslib
   ./configure --enable-plugins --enable-libcurl --prefix=$INST_PATH
   make clean
-  make -j$CPU
+  make -j2
   make install
   cd $SETUP_DIR
   rm -rf distro.*
@@ -61,7 +60,7 @@ if [ ! -e $SETUP_DIR/samtools.success ]; then
   cd distro
   ./configure --enable-plugins --enable-libcurl --with-htslib=$INST_PATH --prefix=$INST_PATH
   make clean
-  make -j1 all
+  make -j2 all
   make install
   cd $SETUP_DIR
   rm -rf distro.* distro/*

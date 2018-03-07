@@ -32,5 +32,6 @@ install:
  - rm -rf alleleCount
 
 script:
+ - export LD_LIBRARY_PATH=$HOME/wtsi-opt/lib
  - build/htstools.sh $HOME/wtsi-opt
  - ./setup.sh $HOME/wtsi-opt
