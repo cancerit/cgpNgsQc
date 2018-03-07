@@ -5,6 +5,8 @@ notifications:
 env:
  - CC=gcc
 
+sudo: false
+
 addons:
  apt:
   packages:
@@ -17,18 +19,18 @@ addons:
    - libpstreams-dev
    - unzip
 
-install: true
-
 language: perl
 
 perl:
  - "5.22"
 
-script:
- - export PATH=$HOME/wtsi-opt/bin:$PATH
+install:
  - git clone --depth 1 --single-branch --branch dev https://github.com/cancerit/alleleCount.git
  - cd alleleCount
  - ./setup.sh $HOME/wtsi-opt
  - cd ../
+ - rm -rf alleleCount
+
+script:
  - build/htstools.sh $HOME/wtsi-opt
  - ./setup.sh $HOME/wtsi-opt
