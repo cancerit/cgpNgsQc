@@ -29,6 +29,9 @@ Please see the [wiki](https://travis-ci.org/cancerit/cgpNgsQc/wiki) for details 
 * [VerifyBamId](http://genome.sph.umich.edu/wiki/VerifyBamID)
 * [alleleCount](https://github.com/cancerit/alleleCount)
 
+`build/htstools.sh` will build `Bio::DB::HTS` and `samtools` but it is primarily included for
+the travis build so only use this if you don't already have these installed.
+
 ## Docker, Singularity and Dockstore
 
 There is a pre-built image containing this codebase on quay.io.
