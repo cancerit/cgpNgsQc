@@ -19,7 +19,7 @@ Contents:
 
 ## Usage
 
-Please see the [wiki](https://travis-ci.org/cancerit/cgpNgsQc/wiki) for details of usage.
+Please see the [wiki](https://github.com/cancerit/cgpNgsQc/wiki) for details of usage.
 
 ## Dependancies
 
