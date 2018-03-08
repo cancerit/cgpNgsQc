@@ -1,9 +1,9 @@
 package Sanger::CGP::NgsQc;
 
 ########## LICENCE ##########
-# Copyright (c) 2014-2017 Genome Research Ltd.
+# Copyright (c) 2014-2018 Genome Research Ltd.
 #
-# Author: Keiran Raine <cgpit@sanger.ac.uk>
+# Author: CASM/Cancer IT <cgphelp@sanger.ac.uk>
 #
 # This file is part of cgpNgsQc.
 #
@@ -36,7 +36,7 @@ use strict;
 use base 'Exporter';
 use Bio::DB::HTS;
 
-our $VERSION = '1.4.2';
+our $VERSION = '1.4.3';
 
 our @EXPORT = qw($VERSION);
 

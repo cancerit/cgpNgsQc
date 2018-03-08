@@ -1,9 +1,9 @@
 #! /usr/bin/perl
 
 ########## LICENCE ##########
-# Copyright (c) 2014-2017 Genome Research Ltd.
+# Copyright (c) 2014-2018 Genome Research Ltd.
 #
-# Author: Yaobo Xu <cgpit@sanger.ac.uk>
+# Author: CASM/Cancer IT <cgphelp@sanger.ac.uk>
 #
 # This file is part of cgpNgsQc.
 #
@@ -99,7 +99,7 @@ validate_smaple_meta.pl [options]
 
   Required parameters:
     -in          -i    Input file. First column must be DONOR_ID.
-    -out         -o    Output file (It'll be in the format as specified with '-format'. Extension name will be added when missing).
+    -out         -o    Output file (must have the same extension name as specifed with -format).
     -format      -f    Input file format (xlsx, xls or tsv).
 
   Other:
