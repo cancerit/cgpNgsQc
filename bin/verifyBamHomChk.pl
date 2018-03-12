@@ -55,7 +55,7 @@ $verify->set_snps($options->{'snps'}) if(exists $options->{'snps'});
 $verify->set_workspace($options->{'out'});
 $verify->set_downsample($options->{'downsamp'});
 $verify->filter_loci();
-$verify->run_verifyBam();
+$verify->run_verifyBam($options->{'threads'});
 
 if(defined $options->{'json'}) {
   if($options->{'json'} eq '-') {
@@ -70,7 +70,9 @@ if(defined $options->{'json'}) {
 exit 0;
 
 sub setup {
-  my %opts;
+  my %opts = ('threads' => 1,
+              'downsamp' => 1,
+              );
   GetOptions( 'h|help' => \$opts{'h'},
               'm|man' => \$opts{'m'},
               'v|version' => \$opts{'v'},
@@ -78,8 +80,9 @@ sub setup {
               'o|outdir=s' => \$opts{'out'},
               'a|ascat=s' => \$opts{'ascat'},
               's|snps=s' => \$opts{'snps'},
-              'd|downsamp=i' => \$opts{'downsamp'},
+              'd|downsamp:i' => \$opts{'downsamp'},
               'j|json=s' => \$opts{'json'},
+              't|threads:i' => \$opts{'threads'},
   ) or pod2usage(2);
 
   pod2usage(-verbose => 1) if(defined $opts{'h'});
@@ -105,7 +108,7 @@ sub setup {
     delete $opts{'snps'};
   }
 
-  $opts{'downsamp'} = 1 unless(defined $opts{'downsamp'});
+  $opts{'threads'} = 4 if($opts{'threads'} > 4);
 
   ## setup out location
   make_path($opts{'out'}) or die $! unless(-e $opts{'out'});
@@ -141,6 +144,8 @@ verifyBamHomChk.pl [options]
     -ascat    -a  Exclude LOH regions based on ASCAT segments file []
 
     -json     -j  Output summary as JSON string '-' for STDOUT.
+
+    -threads  -t  When CRAM use additional threads [1-4]
 
   Other:
     -help     -h  Brief help message.
