@@ -55,7 +55,7 @@ const my $VERIFY => qq{%s --noPhoneHome --precise --maxDepth 200 --minMapQ $MIN_
 # 512 - read fails platform/vendor quality checks (0x200)
 # 1024 - read is PCR or optical duplicate (0x400)
 # 2048 - supplementary alignment (0x800)
-const my $CRAMTOBAM => qq{%s view -F 3844 -L %s -q $MIN_MAP_Q -b %s | tee %s | samtools index - %s.bai};
+const my $CRAMTOBAM => qq{%s view -F 3844 -@ %d -L %s -q $MIN_MAP_Q -b %s | tee %s | samtools index - %s.bai};
 
 sub new {
   my ($class, $bam) = @_;
@@ -132,12 +132,12 @@ sub result_to_json {
 }
 
 sub run_verifyBam {
-  my $self = shift;
+  my ($self, $threads) = @_;
   my $snps = $self->{'filtered_snps'};
   my $bam = $self->{'bam'};
   my ($out_stub) = $snps =~ m/(.*)_snps[.]vcf$/;
 
-  $bam = $self->subsamp_cram_to_bam() if($bam =~ m/\.cram$/);
+  $bam = $self->subsamp_cram_to_bam($threads) if($bam =~ m/\.cram$/);
 
   my $verifyBamID = "$Bin/verifyBamId";
   $verifyBamID = which('verifyBamId') unless(-e $verifyBamID);
@@ -184,7 +184,7 @@ sub run_verifyBam {
 }
 
 sub subsamp_cram_to_bam {
-  my $self = shift;
+  my ($self, $threads) = @_;
   my $sample = $self->{'sample'};
   my $outdir = $self->{'workspace'};
   my $bed_locs = "$outdir/${sample}_snps.bed";
@@ -192,7 +192,7 @@ sub subsamp_cram_to_bam {
   $self->vcf_to_bed($bed_locs);
 
   my $samtools = which('samtools');
-  my $command = sprintf $CRAMTOBAM, $samtools, $bed_locs, $self->{'bam'}, $sub_bam, $sub_bam;
+  my $command = sprintf $CRAMTOBAM, $samtools, $threads, $bed_locs, $self->{'bam'}, $sub_bam, $sub_bam;
   warn "Running: $command\n";
   my ($stdout, $stderr, $exit) = capture { system($command); };
   die "An error occurred while executing:\n\t$command\nERROR: $stderr\n" if($exit);

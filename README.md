@@ -79,3 +79,6 @@ identical to a statement that reads ‘Copyright (c) 2005, 2006, 2007, 2008,
 [travis-base]: https://travis-ci.org/cancerit/cgpNgsQc
 [travis-master]: https://travis-ci.org/cancerit/cgpNgsQc.svg?branch=master
 [travis-develop]: https://travis-ci.org/cancerit/cgpNgsQc.svg?branch=develop
+
+<!-- refs -->
+[ds-cgpwgs-git]: https://github.com/cancerit/dockstore-cgpwgs
