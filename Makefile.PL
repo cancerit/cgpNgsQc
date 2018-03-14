@@ -1,9 +1,9 @@
 #!/usr/bin/perl
 
 ########## LICENCE ##########
-# Copyright (c) 2014-2016 Genome Research Ltd.
+# Copyright (c) 2014-2018 Genome Research Ltd.
 #
-# Author: Keiran Raine <cgpit@sanger.ac.uk>
+# Author: CASM/Cancer IT <cgphelp@sanger.ac.uk>
 #
 # This file is part of cgpNgsQc.
 #
@@ -38,7 +38,7 @@ use File::ShareDir::Install;
 install_share dist => 'share';
 
 WriteMakefile(
-  NAME          => 'Sanger-CGP-NgsQc',
+  NAME          => 'Sanger::CGP::NgsQc',
   LICENSE       => 'agpl_3', # http://search.cpan.org/~dagolden/CPAN-Meta-2.142690/lib/CPAN/Meta/Spec.pm#license
   VERSION_FROM  => 'lib/Sanger/CGP/NgsQc.pm',
   EXE_FILES     => [qw( bin/verifyBamHomChk.pl

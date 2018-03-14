@@ -1,9 +1,9 @@
 package Sanger::CGP::NgsQc::VerifyBamId;
 
 ########## LICENCE ##########
-# Copyright (c) 2014 Genome Research Ltd.
+# Copyright (c) 2014-2018 Genome Research Ltd.
 #
-# Author: Keiran Raine <cgpit@sanger.ac.uk>
+# Author: CASM/Cancer IT <cgphelp@sanger.ac.uk>
 #
 # This file is part of cgpNgsQc.
 #
@@ -45,7 +45,17 @@ use autodie qw(:all);
 use JSON;
 use IO::Uncompress::Gunzip qw($GunzipError);
 
-const my $VERIFY => q{%s --precise --maxDepth 200 --minMapQ 10 --minQ 13 --maxQ 40 --grid 0.05 --ignoreOverlapPair --self --vcf %s --bam %s --out %s};
+const my $MIN_MAP_Q => 10;
+
+const my $VERIFY => qq{%s --noPhoneHome --precise --maxDepth 200 --minMapQ $MIN_MAP_Q --minQ 13 --maxQ 40 --grid 0.05 --ignoreOverlapPair --self --vcf %s --bam %s --out %s};
+
+## flags set to discard:
+# 4 - read unmapped (0x4)
+# 256 - not primary alignment (0x100)
+# 512 - read fails platform/vendor quality checks (0x200)
+# 1024 - read is PCR or optical duplicate (0x400)
+# 2048 - supplementary alignment (0x800)
+const my $CRAMTOBAM => qq{%s view -F 3844 -@ %d -L %s -q $MIN_MAP_Q -b %s | tee %s | samtools index - %s.bai};
 
 sub new {
   my ($class, $bam) = @_;
@@ -53,6 +63,7 @@ sub new {
               'excluded_snps' => 0,
               'retained_snps' => 0,
               'downsamp' => 1,
+              'workspace' => undef,
               };
   bless $self, $class;
   $self->set_bam($bam) if(defined $bam);
@@ -62,6 +73,12 @@ sub new {
 sub set_bam {
   my ($self, $bam) = @_;
   $self->_init($bam);
+  1;
+}
+
+sub set_workspace {
+  my ($self, $workspace) = @_;
+  $self->{'workspace'} = $workspace;
   1;
 }
 
@@ -115,10 +132,12 @@ sub result_to_json {
 }
 
 sub run_verifyBam {
-  my $self = shift;
+  my ($self, $threads) = @_;
   my $snps = $self->{'filtered_snps'};
   my $bam = $self->{'bam'};
   my ($out_stub) = $snps =~ m/(.*)_snps[.]vcf$/;
+
+  $bam = $self->subsamp_cram_to_bam($threads) if($bam =~ m/\.cram$/);
 
   my $verifyBamID = "$Bin/verifyBamId";
   $verifyBamID = which('verifyBamId') unless(-e $verifyBamID);
@@ -127,6 +146,11 @@ sub run_verifyBam {
   warn "Running: $command\n";
   my ($stdout, $stderr, $exit) = capture { system($command); };
   die "An error occurred while executing:\n\t$command\nERROR: $stderr\n" if($exit);
+
+  if($self->{'bam'} =~ m/\.cram$/) {
+    unlink $bam;
+    unlink $bam.'.bai';
+  }
 
   my $result = "$out_stub.selfSM";
   open my $RES, '<', $result;
@@ -159,6 +183,39 @@ sub run_verifyBam {
   $self->{'result'} = \%contam_data;
 }
 
+sub subsamp_cram_to_bam {
+  my ($self, $threads) = @_;
+  my $sample = $self->{'sample'};
+  my $outdir = $self->{'workspace'};
+  my $bed_locs = "$outdir/${sample}_snps.bed";
+  my $sub_bam = "$outdir/${sample}_snps.bam";
+  $self->vcf_to_bed($bed_locs);
+
+  my $samtools = which('samtools');
+  my $command = sprintf $CRAMTOBAM, $samtools, $threads, $bed_locs, $self->{'bam'}, $sub_bam, $sub_bam;
+  warn "Running: $command\n";
+  my ($stdout, $stderr, $exit) = capture { system($command); };
+  die "An error occurred while executing:\n\t$command\nERROR: $stderr\n" if($exit);
+  unlink $bed_locs;
+  return $sub_bam;
+}
+
+sub vcf_to_bed {
+  my ($self, $tmp_bed) = @_;
+
+  open my $OUT, '>', $tmp_bed;
+  open my $SNPS, '<', $self->{'filtered_snps'};
+  while(<$SNPS>) {
+    next if $_ =~ m/^#/;
+    chomp $_;
+    my ($chr, $pos) = (split /\t/, $_)[0,1];
+    printf $OUT "%s\t%d\t%d\n", $chr, $pos-1, $pos;
+  }
+  close $SNPS;
+  close $OUT;
+  return 1;
+}
+
 sub get_loh_regions {
   my $self = shift;
   my %loh_by_chr;
@@ -176,12 +233,13 @@ sub get_loh_regions {
 }
 
 sub filter_loci {
-  my ($self, $outdir) = @_;
+  my $self  = shift;
   my $loh_regions = $self->get_loh_regions;
   my $loci = $self->get_snps;
   warn "Original Loci: $loci\n";
   my $sample = $self->{'sample'};
   my $one_in_x = $self->{'downsamp'};
+  my $outdir = $self->{'workspace'};
   make_path($outdir) unless(-d $outdir);
   my $filtered_vcf = "$outdir/${sample}_snps.vcf";
 
