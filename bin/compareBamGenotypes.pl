@@ -51,7 +51,11 @@ my $options = &setup;
 my $compare = Sanger::CGP::NgsQc::CompareGenotypes->new();
 $compare->add_tumour_bams(@{$options->{'t_bams'}});
 $compare->add_normal_bam($options->{'n_bam'});
-$compare->compare($options->{'out'});
+$compare->compare(  $options->{'out'},
+                    { 'genotype' => $options->{'genotype'},
+                      'gender' => $options->{'gender'}
+                    }
+                  );
 
 if(defined $options->{'json'}) {
   if($options->{'json'} eq '-') {
@@ -67,7 +71,10 @@ if(defined $options->{'json'}) {
 exit 0;
 
 sub setup {
-  my %opts;
+  my %opts = (
+    'genotype' => undef,
+    'gender' => undef,
+  );
   GetOptions( 'h|help' => \$opts{'h'},
               'm|man' => \$opts{'m'},
               'v|version' => \$opts{'v'},
@@ -75,6 +82,8 @@ sub setup {
               'nb|normal_bam=s' => \$opts{'n_bam'},
               'o|outdir=s' => \$opts{'out'},
               'j|json=s' => \$opts{'json'},
+              's|genotype=s' => \$opts{'genotype'},
+              'g|gender=s' => \$opts{'gender'},
   ) or pod2usage(2);
 
   pod2usage(-verbose => 1) if(defined $opts{'h'});
@@ -115,6 +124,8 @@ compareBamGenotypes.pl [options]
 
   Optional parameters:
     -json         -j  Output summary as JSON string '-' for STDOUT.
+    -genotype     -s  Genotype SNP loci
+    -gender       -g  Gender SNP loci
 
   Other:
     -help         -h  Brief help message.
