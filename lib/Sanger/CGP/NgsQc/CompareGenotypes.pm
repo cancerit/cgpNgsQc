@@ -83,13 +83,13 @@ sub result_to_json {
 }
 
 sub compare {
-  my ($self, $outdir) = @_;
-  my $sm_normal = $self->genotype($outdir, $self->{'normal_bam'});
-  $self->gender($outdir, $self->{'normal_bam'});
+  my ($self, $outdir, $loci_sets) = @_;
+  my $sm_normal = $self->genotype($outdir, $self->{'normal_bam'}, $loci_sets->{'genotype'});
+  $self->gender($outdir, $self->{'normal_bam'}, $loci_sets->{'gender'});
   my @sm_tumours;
   for my $tum_bam(@{$self->{'tumour_bams'}}) {
-    my $sm_tumour = $self->genotype($outdir, $tum_bam);
-    $self->gender($outdir, $tum_bam);
+    my $sm_tumour = $self->genotype($outdir, $tum_bam, $loci_sets->{'genotype'});
+    $self->gender($outdir, $tum_bam, $loci_sets->{'gender'});
     $self->compare_samples($outdir, $sm_normal, $sm_tumour);
   }
   1;
@@ -148,9 +148,10 @@ sub compare_samples {
 }
 
 sub genotype {
-  my ($self, $outdir, $bam) = @_;
+  my ($self, $outdir, $bam, $loci) = @_;
   my $sample = Sanger::CGP::NgsQc::bam_sample_name($bam);
-  my $command = sprintf $ALLELE_COUNT, alleleCounter(), default_genotype_loci(), $bam;
+  $loci = default_genotype_loci() unless(defined $loci);
+  my $command = sprintf $ALLELE_COUNT, alleleCounter(), $loci, $bam;
   warn "Running: $command\n";
   my ($stdout, $stderr, $exit) = capture { system($command); };
   die "An error occurred while executing:\n\t$command\nERROR: $stderr\n" if($exit);
@@ -176,9 +177,10 @@ sub genotype {
 }
 
 sub gender {
-  my ($self, $outdir, $bam) = @_;
+  my ($self, $outdir, $bam, $loci) = @_;
   my $sample = Sanger::CGP::NgsQc::bam_sample_name($bam);
-  my $command = sprintf $ALLELE_COUNT, alleleCounter(), default_gender_loci(), $bam;
+  $loci = default_gender_loci() unless(defined $loci);
+  my $command = sprintf $ALLELE_COUNT, alleleCounter(), $loci, $bam;
   warn "Running: $command\n";
   my ($stdout, $stderr, $exit) = capture { system($command); };
   die "An error occurred while executing:\n\t$command\nERROR: $stderr\n" if($exit);

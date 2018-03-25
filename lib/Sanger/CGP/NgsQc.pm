@@ -36,7 +36,7 @@ use strict;
 use base 'Exporter';
 use Bio::DB::HTS;
 
-our $VERSION = '1.5.0';
+our $VERSION = '1.5.1';
 
 our @EXPORT = qw($VERSION);
 
